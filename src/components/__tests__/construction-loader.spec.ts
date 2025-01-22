@@ -7,6 +7,12 @@ import { SphericalConstruction } from "@/types";
 import { Matrix4 } from "three";
 import { useAccountStore } from "@/stores/account";
 
+// potential improvements:
+//  - when testing that private/public/starred constructions are shown, place some constructions in another "bucket"
+//    to ensure that only the desired constructions are shown and no others.
+//  - ensure search works with non-ASCII characters (if that's even a priority - haven't studied database layer of this
+//    codebase enough to know if you can even save with names that include non-ASCII chars)
+
 // generate sample data for the unit tests; produces 3 SphericalConstruction objects
 // in an array with consecutive increasing IDs
 const sampleData = () => {
@@ -143,8 +149,9 @@ describe("Construction Loader", () => {
     const { wrapper, testPinia } = createWrapper(TestedComponent, {});
     const constructionStore = useConstructionStore(testPinia);
     const acctStore = useAccountStore(testPinia);
-    // hard coded firebase uids?
-    acctStore.firebaseUid = "AbCD17618U";
+    // hard coded firebase UIDs? The actual value doesn't seem to matter,
+    // it just needs to be defined.
+    acctStore.firebaseUid = "test";
     await wrapper.vm.$nextTick();
     const testData = sampleData();
     constructionStore.privateConstructions = testData;
@@ -160,6 +167,7 @@ describe("Construction Loader", () => {
       expect(privateText).toContain(s.author);
       expect(privateText).toContain(s.dateCreated);
     });
+    console.debug(privateText);
   });
 
   // same as the first 2 tests, but with starred constructions
@@ -168,7 +176,7 @@ describe("Construction Loader", () => {
     const { wrapper, testPinia } = createWrapper(TestedComponent, {});
     const constructionStore = useConstructionStore(testPinia);
     const acctStore = useAccountStore(testPinia);
-    acctStore.firebaseUid = "AbCD17618U";
+    acctStore.firebaseUid = "test";
     await wrapper.vm.$nextTick();
     const testData = sampleData();
     constructionStore.starredConstructions = testData;
@@ -213,7 +221,7 @@ describe("Construction Loader", () => {
     const { wrapper, testPinia } = createWrapper(TestedComponent, {});
     const constructionStore = useConstructionStore(testPinia);
     const acctStore = useAccountStore(testPinia);
-    acctStore.firebaseUid = "AbCD17618U";
+    acctStore.firebaseUid = "test";
     await wrapper.vm.$nextTick();
     const testData = sampleData();
     testData[0].description = "Euler theorem";
@@ -249,7 +257,7 @@ describe("Construction Loader", () => {
     await wrapper.vm.$nextTick();
     const acctStore = useAccountStore(testPinia);
     acctStore.starredConstructionIDs.push(testData[0].publicDocId, testData[1].publicDocId);
-    acctStore.firebaseUid = "AbCD17618U";
+    acctStore.firebaseUid = "test";
     await vi.advanceTimersByTime(1100);
     const searchInput = wrapper.find("[data-testid=searchInput").find("input");
     const cList = wrapper.find("[data-testid=starredList]");
