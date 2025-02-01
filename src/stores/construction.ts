@@ -43,6 +43,7 @@ import { watch } from "vue";
 import { mergeIntoImageUrl } from "@/utils/helpingfunctions";
 import { watchDebounced, watchPausable } from "@vueuse/core";
 import EventBus from "@/eventHandlers/EventBus";
+
 let appStorage: FirebaseStorage;
 let appDB: Firestore;
 let appAuth: Auth;

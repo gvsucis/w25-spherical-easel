@@ -661,8 +661,12 @@ export interface SphericalConstruction extends ConstructionInFirestore {
 }
 
 export interface PublicConstructionInFirestore {
-  author: string; // Firebase Auth UID of the construction owner
+  /** Firebase Auth UID of the construction owner */
+  author: string;
+  /** Firebase ID for the construction this references */
   constructionDocId: string;
+  /** date that this construction was made public */
+  datePublicized?: string;
 }
 
 export interface ConstructionInFirestore {
@@ -674,7 +678,7 @@ export interface ConstructionInFirestore {
   starCount: number;
   rotationMatrix?: string;
   preview: string; // Either the data:image of the URL to the data:image
-  aspectRatio?: number /* width / height of the screen when image was capture*/;
+  aspectRatio?: number; /* width / height of the screen when image was capture*/
   publicDocId?: string; // linked to the document with structure PublicConstructionInFirebase
   // A list of enabled tool buttons associated with this construction
   tools: Array<ActionMode> | undefined;
