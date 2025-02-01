@@ -244,23 +244,26 @@ describe("Construction Loader", () => {
     const constructionStore = useConstructionStore(testPinia);
     const testData = sampleData().map((s, pos) => ({
       ...s,
-      publicDocId: `PublicConstruction #${pos}`,
+      publicDocId: `PublicConstruction #${pos}`
     }));
     testData[0].description = "Venn diagram";
     // Pass a copy into the store so we have an unmodified test data
     // for reference
-    constructionStore.publicConstructions = testData.slice(0)
+    constructionStore.publicConstructions = testData.slice(0);
     await wrapper.vm.$nextTick();
     const acctStore = useAccountStore(testPinia);
-    acctStore.starredConstructionIDs.push(testData[0].publicDocId, testData[1].publicDocId);
+    acctStore.starredConstructionIDs.push(
+      testData[0].publicDocId,
+      testData[1].publicDocId
+    );
     acctStore.firebaseUid = "test";
     await vi.advanceTimersByTime(1100);
     const searchInput = wrapper.find("[data-testid=searchInput]").find("input");
     const cList = wrapper.find("[data-testid=starredList]");
-    const cPanel = wrapper.find("[data-testid=starredPanel]")
+    const cPanel = wrapper.find("[data-testid=starredPanel]");
 
     // Must click to expand the panel
-    await cPanel.trigger('click')
+    await cPanel.trigger("click");
     expect(cList.exists()).toBeTruthy();
     searchInput.setValue("Venn");
     vi.advanceTimersByTime(1500);
