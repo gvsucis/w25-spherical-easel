@@ -28,6 +28,14 @@ import {
 } from "firebase/auth";
 
 // Declare helper functions OUTSIDE the store definition
+
+/**
+ * @desc insert a string into an array of strings in ascending alphabetical
+ *       order.
+ *
+ * @param newItem item to insert
+ * @param arr list to insert into
+ */
 function insertAscending(newItem: string, arr: string[]): void {
   let k = 0;
   while (k < arr.length && newItem > arr[k]) k++;
