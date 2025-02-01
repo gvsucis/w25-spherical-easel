@@ -1,7 +1,6 @@
 import TestedComponent from "../ConstructionLoader.vue";
 import { vi, describe, beforeEach, it, expect } from "vitest";
 import { createWrapper } from "$/vue-helper";
-import { createI18n, useI18n } from "vue-i18n";
 import { useConstructionStore } from "@/stores/construction";
 import { SphericalConstruction } from "@/types";
 import { Matrix4 } from "three";
@@ -10,8 +9,6 @@ import { useAccountStore } from "@/stores/account";
 // potential improvements:
 //  - when testing that private/public/starred constructions are shown, place some constructions in another "bucket"
 //    to ensure that only the desired constructions are shown and no others.
-//  - ensure search works with non-ASCII characters (if that's even a priority - haven't studied database layer of this
-//    codebase enough to know if you can even save with names that include non-ASCII chars)
 
 // generate sample data for the unit tests; produces 3 SphericalConstruction objects
 // in an array with consecutive increasing IDs
@@ -81,8 +78,6 @@ vi.mock("firebase/auth", async orig => {
 // the rake library/DSL for Ruby. This call to "describe" creates a test suite
 // called "construction loader"
 describe("Construction Loader", () => {
-  const i18n = createI18n({});
-
   // reset all mocked symbols before running each individual test
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,15 +117,15 @@ describe("Construction Loader", () => {
     // thing for a unit test to be doing.
     await wrapper.vm.$nextTick();
     // grab the public panel component
-    const pubPanel = wrapper.find("[data-testid=publicPanel");
+    const pubPanel = wrapper.find("[data-testid=publicPanel]");
     // print the panel's text to the console
     console.debug("Public panel", pubPanel.text());
     // Give the idle timer a chance to run
     await vi.advanceTimersByTime(1500);
     // print the panel's text to console again; not sure what the "after click" means here.
-    console.debug("Public panel (after click)", pubPanel.text());
+    console.debug("Public panel (after idle)", pubPanel.text());
     // grab the public list component
-    const pub = wrapper.find("[data-testid=publicList");
+    const pub = wrapper.find("[data-testid=publicList]");
     // grab the text of the public list
     const pubText = pub.text();
     // ensure the public list text contains the author, description, and date created of each
@@ -156,12 +151,12 @@ describe("Construction Loader", () => {
     const testData = sampleData();
     constructionStore.privateConstructions = testData;
     // console.debug("Wrapper", wrapper.text())
-    const privatePanel = wrapper.find("[data-testid=privatePanel");
+    const privatePanel = wrapper.find("[data-testid=privatePanel]");
     // console.debug("Private panel", privatePanel.text())
     // Give the idle timer a chance to run
     await vi.advanceTimersByTime(1500);
     // console.debug("Private panel (after idle)", privatePanel.text())
-    const priv = wrapper.find("[data-testid=privateList");
+    const priv = wrapper.find("[data-testid=privateList]");
     const privateText = priv.text();
     testData.forEach(s => {
       expect(privateText).toContain(s.author);
@@ -177,15 +172,16 @@ describe("Construction Loader", () => {
     const constructionStore = useConstructionStore(testPinia);
     const acctStore = useAccountStore(testPinia);
     acctStore.firebaseUid = "test";
+    // difference between this and advancing by 1500?
     await wrapper.vm.$nextTick();
     const testData = sampleData();
     constructionStore.starredConstructions = testData;
     // console.debug("Wrapper", wrapper.text())
-    const panel = wrapper.find("[data-testid=starredPanel");
+    const panel = wrapper.find("[data-testid=starredPanel]");
     // Give the idle timer a chance to run
     await vi.advanceTimersByTime(1500);
     // console.debug("Private panel (after idle)", privatePanel.text())
-    const starred = wrapper.find("[data-testid=starredList");
+    const starred = wrapper.find("[data-testid=starredList]");
     const text = starred.text();
     testData.forEach(s => {
       expect(text).toContain(s.author);
@@ -202,7 +198,7 @@ describe("Construction Loader", () => {
     testData[0].description = "Euler theorem";
     constructionStore.publicConstructions.push(...testData);
     await wrapper.vm.$nextTick();
-    const searchInput = wrapper.find("[data-testid=searchInput").find("input");
+    const searchInput = wrapper.find("[data-testid=searchInput]").find("input");
     const publicList = wrapper.find("[data-testid=publicList]");
     searchInput.setValue("euler");
     vi.advanceTimersByTime(2000);
@@ -227,19 +223,19 @@ describe("Construction Loader", () => {
     testData[0].description = "Euler theorem";
     constructionStore.privateConstructions.push(...testData);
     await wrapper.vm.$nextTick();
-    const searchInput = wrapper.find("[data-testid=searchInput").find("input");
+    const searchInput = wrapper.find("[data-testid=searchInput]").find("input");
     const cList = wrapper.find("[data-testid=privateList]");
     expect(cList.exists()).toBeTruthy();
     searchInput.setValue("euler");
     vi.advanceTimersByTime(2000);
     await wrapper.vm.$nextTick();
-    // console.debug("Search", searchInput.html())
     const outputText = cList.text();
+    // expect the output to only contain the first item, which was modified to contain the
+    // search string.
     testData.forEach((s, pos) => {
       if (pos == 0) expect(outputText).toContain(s.description);
       else expect(outputText).not.toContain(s.description);
     });
-    // console.debug("Public list", publicList.html())
   });
 
   it.skip("shows filtered list of starred constructions", async () => {
@@ -259,7 +255,7 @@ describe("Construction Loader", () => {
     acctStore.starredConstructionIDs.push(testData[0].publicDocId, testData[1].publicDocId);
     acctStore.firebaseUid = "test";
     await vi.advanceTimersByTime(1100);
-    const searchInput = wrapper.find("[data-testid=searchInput").find("input");
+    const searchInput = wrapper.find("[data-testid=searchInput]").find("input");
     const cList = wrapper.find("[data-testid=starredList]");
     const cPanel = wrapper.find("[data-testid=starredPanel]")
 
@@ -274,5 +270,28 @@ describe("Construction Loader", () => {
       if (pos == 0) expect(outputText).toContain(s.description);
       else expect(outputText).not.toContain(s.description);
     });
+  });
+
+  // try to search for non-ascii characters
+  it("can search for non-ascii characters", async () => {
+    vi.useFakeTimers();
+    const { wrapper, testPinia } = createWrapper(TestedComponent, {});
+    const constructionStore = useConstructionStore(testPinia);
+    const testData = sampleData();
+    testData[0].description = "😱";
+    constructionStore.publicConstructions.push(...testData);
+    await wrapper.vm.$nextTick();
+    const searchInput = wrapper.find("[data-testid=searchInput").find("input");
+    const publicList = wrapper.find("[data-testid=publicList]");
+    searchInput.setValue("😱");
+    vi.advanceTimersByTime(2000);
+    await wrapper.vm.$nextTick();
+    // console.debug("Search", searchInput.html())
+    const outputText = publicList.text();
+    testData.forEach((s, pos) => {
+      if (pos == 0) expect(outputText).toContain(s.description);
+      else expect(outputText).not.toContain(s.description);
+    });
+    // console.debug("Public list", publicList.html())
   });
 });
