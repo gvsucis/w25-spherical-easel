@@ -48,14 +48,28 @@ let appStorage: FirebaseStorage;
 let appDB: Firestore;
 let appAuth: Auth;
 
+/**
+ * attempt to parse the script from a firestore construction; the script being
+ * a list of commands to execute in-order to re-generate the construction.
+ *
+ * @param id the non-public id of the construction being parsed
+ * @param remoteDoc construction in firestore to attempt parsing the script field from
+ * @returns promise of a spherical construction object that may be empty if the function
+ *          cannot find and/or parse the data from firebase
+ */
 async function parseDocument(
   id: string,
   remoteDoc: ConstructionInFirestore
 ): Promise<SphericalConstruction> {
+  /*
+   * Download and parse the construction script from firebase
+   */
   let parsedScript: ConstructionScript | undefined = undefined;
+  // get the script without any trailing/leading whitespace
   const trimmedScript = remoteDoc.script.trim();
   if (trimmedScript.startsWith("https")) {
-    // Fetch the actual script from Firebase Storage
+    // if the script looks like a URL, try to download it and then parse it.
+    // if we can't, consider the script to be invalid and return an empty object.
     const scriptText = await getDownloadURL(
       storageRef(appStorage, trimmedScript)
     )
@@ -69,14 +83,20 @@ async function parseDocument(
         return [];
       });
 
+    // cast the script's text into the parsedScript type
     parsedScript = scriptText as ConstructionScript;
+    // if the script is not a URL and is not empty, assume it is JSON
   } else if (trimmedScript.length > 0) {
     // Parse the script directly from the Firestore document
     parsedScript = JSON.parse(trimmedScript) as ConstructionScript;
   }
-  const sphereRotationMatrix = new Matrix4();
-  // we care only for non-empty script
+
+  /*
+   * Download and parse the preview script from firebase
+   */
   let svgData: string | undefined;
+  // if the script looks like a URL, try to download and parse it,
+  // returning an empty string on failure.
   if (remoteDoc.preview?.startsWith("https:")) {
     svgData = await getDownloadURL(storageRef(appStorage, remoteDoc.preview))
       .then((url: string) => axios.get(url))
@@ -85,15 +105,15 @@ async function parseDocument(
         console.debug("Firebase Storage error in fetching SVG preview", err);
         return "";
       });
-
-    // console.debug(
-    //   "SVG preview from Firebase Storage ",
-    //   svgData?.substring(0, 70)
-    // );
   } else {
+    // if the script does not look like a URL, use it as-is
     svgData = remoteDoc.preview;
-    // console.debug("SVG preview from Firestore ", svgData?.substring(0, 70));
   }
+
+  /*
+   * determine the number of commands in the script we just downloaded;
+   * if we can't, consider the script to be invalid and set it to an empty object
+   */
   let objectCount = 0;
   if (Array.isArray(parsedScript) && parsedScript.length > 0) {
     objectCount = parsedScript
@@ -108,10 +128,15 @@ async function parseDocument(
       );
   } else parsedScript = [];
 
+  const sphereRotationMatrix = new Matrix4();
   if (remoteDoc.rotationMatrix) {
+    // if we successfully downloaded the rotation matrix from the remote document,
+    // parse it into three.js's Matrix4 type.
     const matrixData = JSON.parse(remoteDoc.rotationMatrix);
     sphereRotationMatrix.fromArray(matrixData);
   }
+
+  // return a full non-databse SphericalConstruction object.
   return Promise.resolve({
     version: remoteDoc.version,
     id,
@@ -121,19 +146,28 @@ async function parseDocument(
     author: remoteDoc.author, //static value assigned for new UI starred count
     dateCreated: remoteDoc.dateCreated,
     description: remoteDoc.description,
+    // use the remote's aspect ratio if it has one, otherwise default to 1.
     aspectRatio: remoteDoc.aspectRatio ?? 1,
     sphereRotationMatrix,
+    // use the parsed svg preview from firebase if valid, otherwise give no preview
     preview: svgData ?? "",
     publicDocId: remoteDoc.publicDocId,
+    // use the parsed tools from firebase if valid, otherwise leave them undefined.
     tools: remoteDoc.tools ?? undefined,
     starCount: remoteDoc.starCount
   } as SphericalConstruction);
 }
 
+/**
+ * sort an array of constructions alphabetically by their IDs
+ *
+ * @param arr array to sort
+ */
 function sortConstructionArray(arr: Array<SphericalConstruction>) {
   arr.sort((a, b) => a.id.localeCompare(b.id));
 }
 
+// define and export a store for constructions of all types
 export const useConstructionStore = defineStore("construction", () => {
   const allPublicConstructions: Array<SphericalConstruction> = [];
   const publicConstructions: Ref<Array<SphericalConstruction>> = ref([]);
@@ -154,10 +188,11 @@ export const useConstructionStore = defineStore("construction", () => {
     storeToRefs(acctStore);
   let currentUID: string | undefined = undefined;
 
+  // watch for changes in the firebase collection
   watchDebounced(
     firebaseUid,
     async uid => {
-      console.debug("Firebase UID watcher", uid);
+      // console.debug("Firebase UID watcher", uid);
       if (uid) {
         await parsePrivateCollection(uid, privateConstructions.value);
         // Identify published owned constructions
@@ -183,6 +218,7 @@ export const useConstructionStore = defineStore("construction", () => {
     { debounce: 500 /* milliseconds */ }
   );
 
+  // watch for changes in starred constructions
   watch(
     () => starredConstructionIDs.value,
     async favorites => {
@@ -215,44 +251,20 @@ export const useConstructionStore = defineStore("construction", () => {
     { deep: true }
   );
 
-  //   watch(sta.value, (stars) => {
-  //       console.debug(`Starred Constructions`, stars)
-  //       if (starredIds.length > 0) {
-  //         console.debug(`Looking for starred item in ${publicConstructions.value.length}`)
-  //         const [starred, unstarred] = publicConstructions.value.partition(z => {
-  //           return starredIds.some(s => s === z.publicDocId)
-  //         });
-  //         console.debug(`Construction Store: starred=${starred.length}, unstarred=${unstarred.length}`)
-  //         starredConstructions.value = starred;
-  //         publicConstructions.value = unstarred;
-  //         }
-  // })
-
-  // constructionDocId !== null implies overwrite existing construction
-  // constructionDocId === null implies create a new construction
+  /**
+   * Save a construction to a new ID, or overwrite an existing construction.
+   *
+   * @param constructionDocId ID of the construction doc to save to; if non-null, attempts
+   *                          to overwrite an existing construction. If null, creates a new one.
+   * @param constructionDescription description of the construction
+   * @param saveAsPublic whether or not to also make an entry in the public constructions list for this construction
+   * @returns
+   */
   async function saveConstruction(
     constructionDocId: null | string,
     constructionDescription: string,
     saveAsPublic: boolean
   ): Promise<string> {
-    // By the time doSave() is called, svgCanvas must have been set
-    // to it is safe to non-null assert svgCanvas.value
-
-    ///// SVG Grab
-    // const svgRoot = svgCanvas.value!.querySelector("svg") as SVGElement;
-    // // Make a duplicate of the SVG tree
-    // const svgElement = svgRoot.cloneNode(true) as SVGElement;
-    // svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-    // // Remove the top-level transformation matrix
-    // // We have to save the preview in its "natural" pose
-    // svgElement.style.removeProperty("transform");
-
-    // const svgBlob = new Blob([svgElement.outerHTML], {
-    //   type: "image/svg+xml;charset=utf-8"
-    // });
-    //// End SVG Grab
-
     let svgBlock = "";
     const nonScalingOptions = {
       stroke: false,
@@ -262,7 +274,7 @@ export const useConstructionStore = defineStore("construction", () => {
     };
     const animateOptions = undefined;
     svgBlock = Command.dumpSVG(
-      Math.min(canvasWidth.value,canvasHeight.value),
+      Math.min(canvasWidth.value, canvasHeight.value),
       nonScalingOptions,
       animateOptions
     );
