@@ -1,4 +1,3 @@
-
 <template>
   <div class="pt-2 mr-2" id="cloader">
     <!--- WARNING: the "id" attribs below are needed for testing -->
@@ -13,16 +12,14 @@
       :label="t('searchLabel')"
       :hint="searchResult" />
 
-
- <!-- Add the treeview -->
- <v-treeview
-    v-model="selectedItems"
-    :items="treeItems"
-    hoverable
-    activatable
-    class="mt-4"
-    @update:active="handleNodeSelection"
-  />
+    <!-- Add the treeview -->
+    <v-treeview
+      v-model="selectedItems"
+      :items="treeItems"
+      hoverable
+      activatable
+      class="mt-4"
+      @update:active="handleNodeSelection" />
 
     <v-expansion-panels
       eager
@@ -54,14 +51,18 @@
       <v-expansion-panel
         data-testid="starredPanel"
         value="starred"
-        v-if="filteredStarredConstructions.length > 0 && firebaseUid && firebaseUid.length > 0">
+        v-if="
+          filteredStarredConstructions.length > 0 &&
+          firebaseUid &&
+          firebaseUid.length > 0
+        ">
         <v-expansion-panel-title>
           {{ t(`starredConstructions`) }} ({{
             filteredStarredConstructions.length
           }})
         </v-expansion-panel-title>
         <v-expansion-panel-text data-testid="starredList">
-          Starred {{starredConstructionIDs}}
+          Starred {{ starredConstructionIDs }}
           <ConstructionList
             :allow-sharing="false"
             :items="filteredStarredConstructions" />
@@ -102,8 +103,8 @@ import { SphericalConstruction } from "@/types";
 import { useAccountStore } from "@/stores/account";
 import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
-import { VTreeview } from 'vuetify/labs/VTreeview'
-import { createVuetify } from 'vuetify'
+import { VTreeview } from "vuetify/labs/VTreeview";
+import { createVuetify } from "vuetify";
 
 // Add this line right after your imports
 //TODO: "Do not create a 2nd vuetify instance" - Dr.Dulimarta
@@ -114,7 +115,6 @@ const vuetify = createVuetify({
   },
 })
 */
-
 
 // Add to your setup function
 const { t } = useI18n();
@@ -139,12 +139,12 @@ const selectedItems = ref<string[]>([]);
 const treeItems = computed(() => {
   return [
     {
-      id: 'root',
-      name: 'Constructions',
+      id: "root",
+      name: "Constructions",
       children: [
         {
-          id: 'private',
-          name: t('privateConstructions'),
+          id: "private",
+          name: t("privateConstructions"),
           children: filteredPrivateConstructions.value.map(item => ({
             id: `private-${item.id}`,
             name: item.description,
@@ -152,8 +152,8 @@ const treeItems = computed(() => {
           }))
         },
         {
-          id: 'starred',
-          name: t('starredConstructions'),
+          id: "starred",
+          name: t("starredConstructions"),
           children: filteredStarredConstructions.value.map(item => ({
             id: `starred-${item.id}`,
             name: item.description,
@@ -161,8 +161,8 @@ const treeItems = computed(() => {
           }))
         },
         {
-          id: 'public',
-          name: t('publicConstructions'),
+          id: "public",
+          name: t("publicConstructions"),
           children: filteredPublicConstructions.value.map(item => ({
             id: `public-${item.id}`,
             name: item.description,
@@ -178,14 +178,14 @@ const handleNodeSelection = (value: string[]) => {
   const selectedItemsArray: string[] = [];
 
   // Check and add matching items
-  if (value.includes('private')) {
-    selectedItemsArray.push('private');
+  if (value.includes("private")) {
+    selectedItemsArray.push("private");
   }
-  if (value.includes('starred')) {
-    selectedItemsArray.push('starred');
+  if (value.includes("starred")) {
+    selectedItemsArray.push("starred");
   }
-  if (value.includes('public')) {
-    selectedItemsArray.push('public');
+  if (value.includes("public")) {
+    selectedItemsArray.push("public");
   }
 
   // Update openPanels with the selected items
@@ -194,8 +194,6 @@ const handleNodeSelection = (value: string[]) => {
   // Ensure selectedItems is also updated as an array
   selectedItems.value = [...selectedItemsArray]; // Correctly updates the array
 };
-
-
 
 onMounted(() => {
   filteredPublicConstructions.value.push(...publicConstructions.value);
@@ -209,7 +207,7 @@ watch(idle, (isIdle: boolean) => {
     return;
   }
   if (lastSearchKey === searchKey.value) {
-    reset()
+    reset();
     return;
   }
   if (searchKey.value.length == 0) {
@@ -273,7 +271,7 @@ watch(idle, (isIdle: boolean) => {
       });
     }
   }
-  reset()
+  reset();
 });
 
 watch(
@@ -282,18 +280,21 @@ watch(
     () => publicConstructions.value,
     () => starredConstructions.value
   ],
-  ([privateList, publicList, starredList],
-    [oldPrivateList, oldPublicList, oldStarredList]) => {
+  (
+    [privateList, publicList, starredList],
+    [oldPrivateList, oldPublicList, oldStarredList]
+  ) => {
     // console.debug(`Private changed ${oldPrivateList.length} => ${privateList.length}`)
     // console.debug(`Public changed ${oldPublicList.length} => ${publicList.length}`)
     // console.debug(`Starred changed ${oldStarredList.length} => ${starredList.length}`)
-    filteredPrivateConstructions.value.splice(0)
-    filteredPrivateConstructions.value.push(...privateList)
-    filteredPublicConstructions.value.splice(0)
-    filteredPublicConstructions.value.push(...publicList)
-    filteredStarredConstructions.value.splice(0)
-    filteredStarredConstructions.value.push(...starredList)
-  }, {deep: true}
+    filteredPrivateConstructions.value.splice(0);
+    filteredPrivateConstructions.value.push(...privateList);
+    filteredPublicConstructions.value.splice(0);
+    filteredPublicConstructions.value.push(...publicList);
+    filteredStarredConstructions.value.splice(0);
+    filteredStarredConstructions.value.push(...starredList);
+  },
+  { deep: true }
 );
 </script>
 <i18n locale="en" lang="json">
