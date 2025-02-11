@@ -589,22 +589,29 @@ export const useConstructionStore = defineStore("construction", () => {
   }
 
   /**
+   * delete a construction and its associated data from the firebase database
+   * and the internal store.
    *
-   * @param uid
-   * @param docId
-   * @returns
+   * @param uid user ID of the user who owns the construction
+   * @param docId document ID of the construction to delete
+   *
+   * @returns true if the deletion is successful, false otherwise
    */
   async function deleteConstruction(
     uid: string,
     docId: string
   ): Promise<boolean> {
+    // get the index of the construciton in the list of constructions
     const pos = privateConstructions.value.findIndex(
       (c: SphericalConstruction) => c.id === docId
     );
+    // only continue if we actually managed to find the construction in question;
+    // if we can't find it, return false to indicate failure.
     if (pos < 0) return false;
+    // grab a copy of the construction
     const victimDetails = privateConstructions.value[pos];
-    // Delete script and preview if they are stored
-    // on the Firebase Storage
+    // delete the public construction object for this construction if it
+    // exists
     if (victimDetails.publicDocId) {
       try {
         await deleteDoc(doc(appDB, "constructions", victimDetails.publicDocId));
@@ -615,6 +622,7 @@ export const useConstructionStore = defineStore("construction", () => {
         );
       }
     }
+    // delete the construction's script if it exists as a seperate storage blob
     if (victimDetails.script.startsWith("https://")) {
       try {
         await deleteObject(storageRef(appStorage, `/scripts/${docId}`));
@@ -622,6 +630,7 @@ export const useConstructionStore = defineStore("construction", () => {
         console.debug(`Unable to delete script ${docId} in Firebase storage`);
       }
     }
+    // delete the construction's preview if it exists as a seperate storage blob
     if (victimDetails.preview.startsWith("https://"))
       try {
         await deleteObject(
@@ -632,14 +641,28 @@ export const useConstructionStore = defineStore("construction", () => {
           `Unable to delete SVG preview ${docId} in Firebase storage`
         );
       }
+    // delete the database's copy of the construction
     await deleteDoc(doc(appDB, "users", uid, "constructions", docId));
+    // remove the construction from the internal cache of constructions
     privateConstructions.value.splice(pos, 1);
+    // return true to indicate success
     return true;
   }
 
+  /**
+   * make an owned construction private.
+   *
+   * @param docId firebase ID of the owned construction to make private
+   *
+   * @returns true on success, false on failure.
+   */
   async function makePrivate(docId: string): Promise<boolean> {
+    // find the index of the construction referenced by docId
     const pos = privateConstructions.value.findIndex(s => s.id === docId);
+    // did we find the construction?
     if (pos >= 0) {
+      // yes, we found the construction; get a reference to the owned construction
+      // in firebase
       const ownedDocRef = doc(
         appDB,
         "users",
@@ -647,26 +670,49 @@ export const useConstructionStore = defineStore("construction", () => {
         "constructions",
         docId
       );
+      // Ronan TODO - double non-null assertion operator?
+      // get the doc ID of the public construction that references this owned construction
       const publicDoc = privateConstructions.value[pos].publicDocId!!;
+      // get a reference to the public construction in firebase
       const publicDocRef = doc(appDB, "constructions", publicDoc);
+      // delete the public doc ID in the owned construction
       await updateDoc(ownedDocRef, { publicDocId: deleteField() });
+      // delete the public construction in firebase
       await deleteDoc(publicDocRef);
+      // remove the public doc ID in the local store
       privateConstructions.value[pos].publicDocId = undefined;
+      // return true to indicate success
       return true;
     } else {
+      // no, we did not find the construction; return false to indicate failure.
       return false;
     }
   }
 
+  /**
+   * Make an owned construction public
+   *
+   * @param docId firebase ID of the owned construction to make public
+   *
+   * @returns true on success, false on failure
+   */
   async function makePublic(docId: string): Promise<boolean> {
+    // get the index of the requested construction in the store
     const pos = privateConstructions.value.findIndex(s => s.id === docId);
+    // is the requested construction in the store?
     if (pos >= 0) {
+      // yes, the requested construction is in the store;
+      // get a reference to the firestore public constructions collection
       const pubConstruction = collection(appDB, "constructions");
+      // create a public construction object to represent the one we want to add to the firestore
       const publicDoc: PublicConstructionInFirestore = {
+        // Ronan TODO - another double non-null assertion operator?
         author: firebaseUid.value!!,
         constructionDocId: docId
       };
+      // add the public construction to firestore
       const q: DocumentReference = await addDoc(pubConstruction, publicDoc);
+      // get a reference to the owned construction being made private in firestore
       const ownedDocRef = doc(
         appDB,
         "users",
@@ -675,12 +721,27 @@ export const useConstructionStore = defineStore("construction", () => {
         docId
       );
 
+      // update the owned construction in firestore to point to its
+      // corresponding public construction
       await updateDoc(ownedDocRef, { publicDocId: q.id });
+      // update the owned construction in the local store to point
+      // to its corresponding public construction
       privateConstructions.value[pos].publicDocId = q.id;
+      // return true to indicate success
       return true;
-    } else return false;
+    } else {
+      // no, the requested construction is not in the store;
+      // return false to indicate failure
+      return false;
+    }
   }
 
+  /**
+   * update the list of starred constructions for the current user's
+   * account
+   *
+   * @param arr array of starred constructions to write to firebase
+   */
   async function updateStarredArrayInFirebase(
     arr: Array<string>
   ): Promise<void> {
@@ -692,14 +753,30 @@ export const useConstructionStore = defineStore("construction", () => {
     }
   }
 
+  /**
+   * adjust the star count of a public construction by an arbitrary value; the value
+   * is added to the previous value, so updateStarCountInFirebase(id, 2) will change
+   * a public construction with ID "id" and previous star count of 3 to have a star count
+   * of 5. Note that star counts cannot be negative - if the delta would result in a negative
+   * value, the value is clamped to 0.
+   *
+   * @param pubConstructionId firebase ID of the public construction to adjust the star count of
+   * @param byValue amount to change the star count by
+   */
   async function updateStarCountInFirebase(
     pubConstructionId: string,
     byValue: number
   ) {
+    // get a reference to the public construction in firebase
     const publicDocRef = doc(appDB, "constructions", pubConstructionId);
+    // get a snapshot of the public construction document in firebase
     const publicDS: DocumentSnapshot = await getDoc(publicDocRef);
+    // does the public document actually exist?
     if (publicDS.exists()) {
+      // yes, the public document actually exists;
+      // cast the doc's data into a public construction type
       const publicDoc = publicDS.data() as PublicConstructionInFirestore;
+      // get a reference to the owned version of the construction
       const ownedDocRef = doc(
         appDB,
         "users",
@@ -707,50 +784,87 @@ export const useConstructionStore = defineStore("construction", () => {
         "constructions",
         publicDoc.constructionDocId
       );
+      // get a snapshot of the owned construction
       const ownedDS: DocumentSnapshot = await getDoc(ownedDocRef);
+      // does the owned construction exist?
       if (ownedDS.exists()) {
+        // cast the owned construction's data into a construction type
         const ownedDoc = ownedDS.data() as SphericalConstruction;
+        // adjust the star count by the consumer-supplied value within
+        // the range [0, inf.]
         if (ownedDoc.starCount + byValue >= 0) {
-          // Avoid negative count (at least during development)
           await updateDoc(ownedDocRef, { starCount: increment(byValue) });
         } else {
           await updateDoc(ownedDocRef, { starCount: 0 });
         }
-      }
-    }
+      } // no, the owned construction does not exist; do nothing
+    } // no, the public construction does not exist; do nothing
   }
 
-  // Move a public construction to the starred list
+  /**
+   * star a public construction for the current user
+   *
+   * @param pubConstructionId the firebase ID of the public construction to star
+   */
   function starConstruction(pubConstructionId: string) {
+    // find the index of the construction in the local store
     const pos = publicConstructions.value.findIndex(
       (z: SphericalConstruction) => z.publicDocId == pubConstructionId
     );
+    // did we find the construction in the local store?
     if (pos >= 0) {
+      /*
+        yes, we found the construction in the local store:
+          1. increment its star count
+          2. remove it from the local store's list of public constructions,
+          3. add it to the local store's list of starred constructions
+          4. update the star count and user's starred list in firebase
+       */
       publicConstructions.value[pos].starCount++;
       const inPublic = publicConstructions.value.splice(pos, 1);
       starredConstructions.value.push(...inPublic);
       starredConstructionIDs.value.push(...inPublic.map(z => z.publicDocId!));
       updateStarredArrayInFirebase(starredConstructionIDs.value);
       updateStarCountInFirebase(pubConstructionId, +1);
-    }
+    } // no, we didn't find the construction in the local store; do nothing
   }
 
+  /**
+   * unstar a public construction for the current user
+   *
+   * @param pubConstructionId firebase ID of the public construction to unstar
+   */
   function unstarConstruction(pubConstructionId: string) {
+    // find the index of the starred construction in the local store
     const pos = starredConstructions.value.findIndex(
       (z: SphericalConstruction) => z.id == pubConstructionId
     );
+    // did we find the construction in the local store?
     if (pos >= 0) {
+      /*
+        yes, we found the construction in the local store of starred constructions;
+        move it from the local store of starred constructions to the local store of
+        public constructions, and decrement its star count
+      */
       const target = starredConstructions.value[pos];
       if (target.starCount > 0) {
         starredConstructions.value[pos].starCount--;
       }
       const inStarred = starredConstructions.value.splice(pos, 1);
       publicConstructions.value.push(...inStarred);
-    }
+    } // no, we didn't find the construction in the local store; skip removing it from there
+    // find the index of the starred construction in firebase
     const pos2 = starredConstructionIDs.value.findIndex(
       x => x === pubConstructionId
     );
+    // did we find the construction in firebase?
     if (pos2 >= 0) {
+      /*
+        yes, we found the construction in firebase;
+        remove it from the user's starred constructions array, then update
+        the firebase's copy of both the user's starred constructions array
+        and the public construction's star count.
+      */
       starredConstructionIDs.value.splice(pos2, 1);
 
       updateStarredArrayInFirebase(starredConstructionIDs.value);
