@@ -194,7 +194,7 @@ export const useConstructionStore = defineStore("construction", () => {
     async uid => {
       // console.debug("Firebase UID watcher", uid);
       if (uid) {
-        await parsePrivateCollection(uid, privateConstructions.value);
+        await parseOwnedCollection(uid, privateConstructions.value);
         // Identify published owned constructions
         const myPublicSet: Set<string> = new Set();
         privateConstructions.value.forEach(s => {
@@ -258,13 +258,14 @@ export const useConstructionStore = defineStore("construction", () => {
    *                          to overwrite an existing construction. If null, creates a new one.
    * @param constructionDescription description of the construction
    * @param saveAsPublic whether or not to also make an entry in the public constructions list for this construction
-   * @returns
+   * @returns the document ID of the saved construction
    */
   async function saveConstruction(
     constructionDocId: null | string,
     constructionDescription: string,
     saveAsPublic: boolean
   ): Promise<string> {
+    /* create and dump to string an SVG of the construction */
     let svgBlock = "";
     const nonScalingOptions = {
       stroke: false,
@@ -445,6 +446,12 @@ export const useConstructionStore = defineStore("construction", () => {
     // }
   }
 
+  /**
+   * Load a public construction by its ID
+   *
+   * @param docId docID of the public construction to load
+   * @returns the resolved full construction as an object, or null if it cannot be loaded.
+   */
   async function loadPublicConstruction(
     docId: string
   ): Promise<ConstructionScript | null> {
@@ -477,22 +484,31 @@ export const useConstructionStore = defineStore("construction", () => {
       });
   }
 
+  /**
+   * fill an array with publically visible constructions
+   *
+   * @param targetArr array to fill with the publically visible constructions
+   * @return nothing - the passed array is directly modified.
+   */
   async function parsePublicCollection(
     targetArr: Array<SphericalConstruction>
   ): Promise<void> {
     targetArr.splice(0);
-    const erroneousDocs: Array<string> = [];
+    /* get a snapshot of the current public constructions */
     const qs: QuerySnapshot = await getDocs(collection(appDB, "constructions"));
 
+    /*
+      build a list of every public construction, follow their pointers to the
+      full constructions they refer to, and convert that list of public constructions
+      into a list of full constructions that we can push into the consumer-provided
+      array object.
+     */
     const parseTasks: Array<Promise<SphericalConstruction>> = qs.docs.map(
       async (qd: QueryDocumentSnapshot) => {
+        /* get and parse each public construction object */
         const remoteData = qd.data();
-        let out: SphericalConstruction | null = null;
-        // In a new format defined by Capstone group Fall 2022
-        // public constructions are simply a reference to
-        // constructions owned by a particular user
         const constructionRef = remoteData as PublicConstructionInFirestore;
-        // publicMap.set(qd.id, constructionRef)
+        /* get a reference to the actual construction the public construction points to */
         const ownedDocRef = doc(
           appDB,
           "users",
@@ -501,66 +517,60 @@ export const useConstructionStore = defineStore("construction", () => {
           constructionRef.constructionDocId
         );
         const ownedDoc = await getDoc(ownedDocRef);
+        /* parse the actual construction into a construction type */
         return parseDocument(
           constructionRef.constructionDocId,
           ownedDoc.data() as ConstructionInFirestore
         );
-        // if (out.parsedScript.length > 0) targetArr.push(out);
-        // else {
-        //   console.warn(
-        //     `Construction ${constructionCollection.path}.${qd.id} contains no script`
-        //   );
-        //   erroneousDocs.push(qd.id);
-        // }
       }
     );
 
+    /* wait for all of the constructions to be fully parsed */
     const constructionArr: Array<SphericalConstruction> = await Promise.all(
       parseTasks
     );
+    /* add the parsed constructions to the input list given by the user */
     targetArr.push(...constructionArr);
-    // Sort by creation date
-    // targetArr.sort((a: SphericalConstruction, b: SphericalConstruction) =>
-    //   a.dateCreated.localeCompare(b.dateCreated)
-    // );
-    // if (erroneousDocs.length > 0) {
-    //   EventBus.fire("show-alert", {
-    //     key: "Missing scripts in documents: " + erroneousDocs.join(","),
-    //     type: "error"
-    //   });
-    // }
-
-    // return Promise.resolve()
   }
 
-  async function parsePrivateCollection(
+  /**
+   * fill an array with a list of constructions owned by a given user
+   *
+   * @param owner firebase id of the user whose constructions are being queried
+   * @param targetArr array to fill with owned constructions
+   */
+  async function parseOwnedCollection(
     owner: string,
     targetArr: Array<SphericalConstruction>
   ): Promise<void> {
+    /* get a snapshot of the owner's constructions list */
     const qs: QuerySnapshot = await getDocs(
       collection(appDB, "users", owner, "constructions")
     );
 
+    /* convert the firebase objects into construction types */
     const parseTask: Array<Promise<SphericalConstruction>> = qs.docs.map(
       (qd: QueryDocumentSnapshot) => {
         const remoteData = qd.data();
         return parseDocument(qd.id, remoteData as ConstructionInFirestore);
-        // if (out.parsedScript.length > 0) targetArr.push(out);
-        // else {
-        //   console.warn(
-        //     `Construction ${constructionCollection.path}.${qd.id} contains no script`
-        //   );
-        //   erroneousDocs.push(qd.id);
-        // }
       }
     );
 
+    /* wait for all of the constructions to be downloaded and parsed */
     const constructionArray: Array<SphericalConstruction> = await Promise.all(
       parseTask
     );
+    /* Ronan TODO I have no idea what array.splice(0) does - seemingly nothing? */
     targetArr.splice(0);
+    /*
+      push the newly parsed and downloaded constructions into the array
+    */
     targetArr.push(
       ...constructionArray.filter(
+        /*
+          Ronan TODO - I think this filter doesn't actually filter out anything due
+          to the "|| true" at the end
+        */
         (s: SphericalConstruction) => s.parsedScript.length > 0 || true
       )
     );
@@ -578,6 +588,12 @@ export const useConstructionStore = defineStore("construction", () => {
     // console.debug(`Public constructions ${publicConstructions.value.length}`);
   }
 
+  /**
+   *
+   * @param uid
+   * @param docId
+   * @returns
+   */
   async function deleteConstruction(
     uid: string,
     docId: string
