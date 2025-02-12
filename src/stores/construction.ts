@@ -560,18 +560,14 @@ export const useConstructionStore = defineStore("construction", () => {
     const constructionArray: Array<SphericalConstruction> = await Promise.all(
       parseTask
     );
-    /* Ronan TODO I have no idea what array.splice(0) does - seemingly nothing? */
     targetArr.splice(0);
     /*
       push the newly parsed and downloaded constructions into the array
     */
     targetArr.push(
       ...constructionArray.filter(
-        /*
-          Ronan TODO - I think this filter doesn't actually filter out anything due
-          to the "|| true" at the end
-        */
-        (s: SphericalConstruction) => s.parsedScript.length > 0 || true
+        // TODO test this
+        (s: SphericalConstruction) => s.parsedScript.length > 0
       )
     );
   }
@@ -666,13 +662,12 @@ export const useConstructionStore = defineStore("construction", () => {
       const ownedDocRef = doc(
         appDB,
         "users",
-        firebaseUid.value!!,
+        firebaseUid.value!,
         "constructions",
         docId
       );
-      // Ronan TODO - double non-null assertion operator?
       // get the doc ID of the public construction that references this owned construction
-      const publicDoc = privateConstructions.value[pos].publicDocId!!;
+      const publicDoc = privateConstructions.value[pos].publicDocId!;
       // get a reference to the public construction in firebase
       const publicDocRef = doc(appDB, "constructions", publicDoc);
       // delete the public doc ID in the owned construction
@@ -706,8 +701,7 @@ export const useConstructionStore = defineStore("construction", () => {
       const pubConstruction = collection(appDB, "constructions");
       // create a public construction object to represent the one we want to add to the firestore
       const publicDoc: PublicConstructionInFirestore = {
-        // Ronan TODO - another double non-null assertion operator?
-        author: firebaseUid.value!!,
+        author: firebaseUid.value!,
         constructionDocId: docId
       };
       // add the public construction to firestore
@@ -716,7 +710,7 @@ export const useConstructionStore = defineStore("construction", () => {
       const ownedDocRef = doc(
         appDB,
         "users",
-        firebaseUid.value!!,
+        firebaseUid.value!,
         "constructions",
         docId
       );
