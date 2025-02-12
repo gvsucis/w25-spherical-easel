@@ -678,10 +678,12 @@ export interface ConstructionInFirestore {
   starCount: number;
   rotationMatrix?: string;
   preview: string; // Either the data:image of the URL to the data:image
-  aspectRatio?: number; /* width / height of the screen when image was capture*/
+  aspectRatio?: number /* width / height of the screen when image was captured */;
   publicDocId?: string; // linked to the document with structure PublicConstructionInFirebase
   // A list of enabled tool buttons associated with this construction
   tools: Array<ActionMode> | undefined;
+  /** organizational path of the construction */
+  path?: string;
 }
 
 /* Reference to a user's favorite tool in settings */
