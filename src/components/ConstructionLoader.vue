@@ -12,16 +12,6 @@
       :label="t('searchLabel')"
       :hint="searchResult" />
 
-    <<<<<<< HEAD
-    <!-- Add the treeview -->
-    <v-treeview
-      v-model="selectedItems"
-      :items="treeItems"
-      hoverable
-      activatable
-      class="mt-4"
-      @update:active="handleNodeSelection" />
-    =======
     <!-- NEW: Button to open dialog-->
     <div class="mb-4" v-if="firebaseUid && firebaseUid.length > 0">
       <v-btn
@@ -98,8 +88,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    >>>>>>> c4bda19a (Added dialog box for pop up with buttons for
-    create/remove/move and copy)
 
     <v-expansion-panels
       eager
