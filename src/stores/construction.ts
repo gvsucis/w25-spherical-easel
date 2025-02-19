@@ -467,6 +467,8 @@ export const useConstructionStore = defineStore("construction", () => {
    *
    * @param targetArr array to fill with the publically visible constructions
    * @return nothing - the passed array is directly modified.
+   *
+   * TODO look into making sure this function executed as expected
    */
   async function parsePublicCollection(
     targetArr: Array<SphericalConstruction>
@@ -555,33 +557,32 @@ export const useConstructionStore = defineStore("construction", () => {
    *
    * @param fromArr array of firebase public construction IDs to parse
    */
-  async function parseStarredConstructions(fromArr: string[])
-  {
-      if (fromArr.length > 0 && allPublicConstructions.length > 0) {
-        console.debug("List of favorite items", fromArr);
-        const [star, unstar] = allPublicConstructions.partition(s => {
-          const isStar = fromArr.some(favId => favId === s.publicDocId);
-          return isStar;
+  async function parseStarredConstructions(fromArr: string[]) {
+    if (fromArr.length > 0 && allPublicConstructions.length > 0) {
+      console.debug("List of favorite items", fromArr);
+      const [star, unstar] = allPublicConstructions.partition(s => {
+        const isStar = fromArr.some(favId => favId === s.publicDocId);
+        return isStar;
+      });
+      starredConstructions.value = star;
+      publicConstructions.value = unstar;
+      starredParsed = true;
+      if (star.length !== fromArr.length) {
+        EventBus.fire("show-alert", {
+          type: "info",
+          key: "Some of your starred constructions are not available anymore"
         });
-        starredConstructions.value = star;
-        publicConstructions.value = unstar;
-        starredParsed = true;
-        if (star.length !== fromArr.length) {
-          EventBus.fire("show-alert", {
-            type: "info",
-            key: "Some of your starred constructions are not available anymore"
-          });
-          const cleanStarred = fromArr.filter(fav => {
-            const pos = allPublicConstructions.findIndex(
-              z => fav === z.publicDocId
-            );
-            return pos >= 0;
-          });
-          await updateStarredArrayInFirebase(cleanStarred);
-        }
-      } else {
-        publicConstructions.value = allPublicConstructions;
+        const cleanStarred = fromArr.filter(fav => {
+          const pos = allPublicConstructions.findIndex(
+            z => fav === z.publicDocId
+          );
+          return pos >= 0;
+        });
+        await updateStarredArrayInFirebase(cleanStarred);
       }
+    } else {
+      publicConstructions.value = allPublicConstructions;
+    }
   }
 
   async function initialize() {
