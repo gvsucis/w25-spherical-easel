@@ -234,10 +234,7 @@ class TreeviewNode {
         /* recurse */
         return this.children[0].getPathParentNode(remainingPath, fullpath);
       } else {
-        /* MARK what's going on here??? */
-        const childNode = this.children.find(node => {
-          node.id === fullPathChunk;
-        });
+        const childNode = this.children.find(node => node.id === fullPathChunk);
         console.log("childNode: " + childNode?.id);
         for (var curChild of this.children) {
           console.debug(
