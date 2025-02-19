@@ -154,7 +154,8 @@ async function parseDocument(
     publicDocId: remoteDoc.publicDocId,
     // use the parsed tools from firebase if valid, otherwise leave them undefined.
     tools: remoteDoc.tools ?? undefined,
-    starCount: remoteDoc.starCount
+    starCount: remoteDoc.starCount,
+    path: remoteDoc.path ?? undefined,
   } as SphericalConstruction);
 }
 
@@ -165,6 +166,44 @@ async function parseDocument(
  */
 function sortConstructionArray(arr: Array<SphericalConstruction>) {
   arr.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+class TreeviewNode {
+  constructor(
+    public id: string,
+    public name: string,
+    public leaf?: boolean,
+    public children?: Array<TreeviewNode>
+  ) {
+    this.id = id;
+    this.name = name;
+  }
+
+  private buildPath(path: string)
+  {
+    const asArr = path.split("/");
+  }
+
+  public appendChild(child: SphericalConstruction)
+  {
+    /* determine the path at which the child is supposed to exist */
+    const path = child.path ?? "";
+  }
+
+}
+
+/**
+ * make a tree out of the owned constructions that is directly consumable by vuetify treeview
+ *
+ * @param arr array to convert to a
+ */
+function treeifyOwnedConstructions(arr: Array<SphericalConstruction>): TreeviewNode
+{
+  let root: TreeviewNode = new TreeviewNode("root", "Owned Constructions");
+
+  /* TODO append every construction in the array to the root */
+
+  return root;
 }
 
 // define and export a store for constructions of all types
@@ -560,6 +599,7 @@ export const useConstructionStore = defineStore("construction", () => {
     const constructionArray: Array<SphericalConstruction> = await Promise.all(
       parseTask
     );
+    /* clear the existing targetArr list */
     targetArr.splice(0);
     /*
       push the newly parsed and downloaded constructions into the array
@@ -570,6 +610,10 @@ export const useConstructionStore = defineStore("construction", () => {
         (s: SphericalConstruction) => s.parsedScript.length > 0
       )
     );
+
+    targetArr.forEach((item) => {
+      console.debug("item: \"" + item.description + "\" item path: \"" + item.path + "\"");
+    });
   }
 
   async function initialize() {
