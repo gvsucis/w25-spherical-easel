@@ -187,7 +187,7 @@ export const useConstructionStore = defineStore("construction", () => {
   const { firebaseUid, starredConstructionIDs, userEmail, includedTools } =
     storeToRefs(acctStore);
   let currentUID: string | undefined = undefined;
-  let starredParsed: boolean = false;
+  let publicParsed: boolean = false;
 
   // watch for changes in the firebase collection
   watchDebounced(
@@ -467,8 +467,6 @@ export const useConstructionStore = defineStore("construction", () => {
    *
    * @param targetArr array to fill with the publically visible constructions
    * @return nothing - the passed array is directly modified.
-   *
-   * TODO look into making sure this function executed as expected
    */
   async function parsePublicCollection(
     targetArr: Array<SphericalConstruction>
@@ -511,6 +509,11 @@ export const useConstructionStore = defineStore("construction", () => {
     );
     /* add the parsed constructions to the input list given by the user */
     targetArr.push(...constructionArr);
+
+    if (!publicParsed) {
+      parseStarredConstructions(starredConstructionIDs.value);
+      publicParsed = true;
+    }
   }
 
   /**
@@ -558,7 +561,7 @@ export const useConstructionStore = defineStore("construction", () => {
    * @param fromArr array of firebase public construction IDs to parse
    */
   async function parseStarredConstructions(fromArr: string[]) {
-    if (fromArr.length > 0 && allPublicConstructions.length > 0) {
+    if (fromArr.length > 0 && publicParsed) {
       console.debug("List of favorite items", fromArr);
       const [star, unstar] = allPublicConstructions.partition(s => {
         const isStar = fromArr.some(favId => favId === s.publicDocId);
@@ -566,7 +569,6 @@ export const useConstructionStore = defineStore("construction", () => {
       });
       starredConstructions.value = star;
       publicConstructions.value = unstar;
-      starredParsed = true;
       if (star.length !== fromArr.length) {
         EventBus.fire("show-alert", {
           type: "info",
@@ -752,7 +754,7 @@ export const useConstructionStore = defineStore("construction", () => {
   async function updateStarredArrayInFirebase(
     arr: Array<string>
   ): Promise<void> {
-    if (firebaseUid.value && starredParsed) {
+    if (firebaseUid.value && publicParsed) {
       const userDocRef = doc(appDB, "users", firebaseUid.value);
       await updateDoc(userDocRef, {
         userStarredConstructions: arr
