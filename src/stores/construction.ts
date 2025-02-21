@@ -571,8 +571,6 @@ export const useConstructionStore = defineStore("construction", () => {
    *
    * @param targetArr array to fill with the publically visible constructions
    * @return nothing - the passed array is directly modified.
-   *
-   * TODO look into making sure this function executed as expected
    */
   async function parsePublicCollection(
     targetArr: Array<SphericalConstruction>
