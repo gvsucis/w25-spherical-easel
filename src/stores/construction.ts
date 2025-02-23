@@ -211,18 +211,6 @@ class TreeviewNode {
         }
       }
 
-      console.debug(
-        'full path: "' +
-          fullpath +
-          '"; curPath: "' +
-          curPath +
-          '"; remainingPath: "' +
-          remainingPath +
-          '"; fullPathChunk: "' +
-          fullPathChunk +
-          '"'
-      );
-
       if (!this.children) {
         /* if this node does not have a children array, give it one and add the folder to it */
         this.children = [];
