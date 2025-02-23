@@ -189,14 +189,10 @@ class TreeviewNode {
    * @param path path to ensure exists and then return reference to; follows format
    *             'folder0/folder1/folderN/'
    * @param fullpath do not explicitly define this; it is only meant to be used by recursive calls.
-   *
-   * TODO
-   *  - this is duplicating folder names sometimes
-   *  - root node's id should be prepended into fullpath
    */
   private getPathParentNode(path: string, fullpath?: string): TreeviewNode {
     /* ensure fullpath is defined, as it won't be at the root */
-    fullpath = fullpath ?? path;
+    fullpath = fullpath ?? this.id + "/" + path;
     /* find the first slash */
     const firstSlashIndex: number = path.indexOf("/");
     if (firstSlashIndex >= 0) {
@@ -235,19 +231,8 @@ class TreeviewNode {
         return this.children[0].getPathParentNode(remainingPath, fullpath);
       } else {
         const childNode = this.children.find(node => node.id === fullPathChunk);
-        console.log("childNode: " + childNode?.id);
-        for (var curChild of this.children) {
-          console.debug(
-            "curChild.id: " +
-              curChild.id +
-              " (" +
-              (curChild.id === fullPathChunk) +
-              ")"
-          );
-        }
         /* if the child node exists, recurse on it */
         if (childNode) {
-          /* recurse */
           return childNode.getPathParentNode(remainingPath, fullpath);
         } else {
           /* if the child node does not exist, create it and then recurse on it */
