@@ -2,7 +2,8 @@ import {
   ConstructionInFirestore,
   SphericalConstruction,
   ConstructionScript,
-  PublicConstructionInFirestore
+  PublicConstructionInFirestore,
+  StarredConstruction
 } from "@/types";
 import { Command } from "@/commands/Command";
 import { defineStore } from "pinia";
@@ -668,12 +669,27 @@ export const useConstructionStore = defineStore("construction", () => {
   async function parseStarredConstructions(fromArr: string[]) {
     if (fromArr.length > 0 && publicParsed) {
       console.debug("List of favorite items", fromArr);
+      /* parse fromArr into a combination of ID and path */
+      const stars: StarredConstruction[] = [];
+      fromArr.forEach(x => {
+        const split = x.split("/", 2);
+        stars.push({
+          id: split[0],
+          path: split[1] ?? ""
+        } as StarredConstruction);
+      });
+
+      console.debug("parsed stars: " + JSON.stringify(stars));
+
       const [star, unstar] = allPublicConstructions.partition(s => {
         const isStar = fromArr.some(favId => favId === s.publicDocId);
         return isStar;
       });
       starredConstructions.value = star;
       publicConstructions.value = unstar;
+      /* TODO remove */
+      return;
+
       if (star.length !== fromArr.length) {
         EventBus.fire("show-alert", {
           type: "info",
