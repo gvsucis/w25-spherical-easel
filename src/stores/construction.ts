@@ -175,12 +175,12 @@ function sortConstructionArray(arr: Array<SphericalConstruction>) {
 class TreeviewNode {
   constructor(
     public id: string,
-    public name: string,
+    public title: string,
     public leaf?: boolean,
     public children?: Array<TreeviewNode>
   ) {
     this.id = id;
-    this.name = name;
+    this.title = title;
     this.leaf = leaf ?? false;
   }
 
@@ -250,27 +250,6 @@ class TreeviewNode {
   }
 }
 
-/**
- * make a tree out of the owned constructions that is directly consumable by vuetify treeview
- *
- * @param arr array to convert to a
- */
-function treeifyOwnedConstructions(
-  arr: Array<SphericalConstruction>
-): TreeviewNode {
-  let root: TreeviewNode = new TreeviewNode(
-    "Owned Constructions",
-    "Owned Constructions"
-  );
-
-  /* TODO append every construction in the array to the root */
-  arr.forEach(con => {
-    root.appendChild(con);
-  });
-
-  return root;
-}
-
 // define and export a store for constructions of all types
 export const useConstructionStore = defineStore("construction", () => {
   const allPublicConstructions: Array<SphericalConstruction> = [];
@@ -279,6 +258,7 @@ export const useConstructionStore = defineStore("construction", () => {
   // Public constructions is never null
   const starredConstructions: Ref<Array<SphericalConstruction>> = ref([]);
   const currentConstructionPreview: Ref<string | null> = ref(null);
+  const ownedTreeview: Ref<TreeviewNode | null> = ref(null);
   const acctStore = useAccountStore();
   const seStore = useSEStore();
   const {
@@ -666,33 +646,32 @@ export const useConstructionStore = defineStore("construction", () => {
    *
    * @param fromArr array of firebase public construction IDs to parse
    */
-  async function parseStarredConstructions(fromArr: string[])
-  {
-      if (fromArr.length > 0 && allPublicConstructions.length > 0) {
-        console.debug("List of favorite items", fromArr);
-        const [star, unstar] = allPublicConstructions.partition(s => {
-          const isStar = fromArr.some(favId => favId === s.publicDocId);
-          return isStar;
+  async function parseStarredConstructions(fromArr: string[]) {
+    if (fromArr.length > 0 && allPublicConstructions.length > 0) {
+      console.debug("List of favorite items", fromArr);
+      const [star, unstar] = allPublicConstructions.partition(s => {
+        const isStar = fromArr.some(favId => favId === s.publicDocId);
+        return isStar;
+      });
+      starredConstructions.value = star;
+      publicConstructions.value = unstar;
+      starredParsed = true;
+      if (star.length !== fromArr.length) {
+        EventBus.fire("show-alert", {
+          type: "info",
+          key: "Some of your starred constructions are not available anymore"
         });
-        starredConstructions.value = star;
-        publicConstructions.value = unstar;
-        starredParsed = true;
-        if (star.length !== fromArr.length) {
-          EventBus.fire("show-alert", {
-            type: "info",
-            key: "Some of your starred constructions are not available anymore"
-          });
-          const cleanStarred = fromArr.filter(fav => {
-            const pos = allPublicConstructions.findIndex(
-              z => fav === z.publicDocId
-            );
-            return pos >= 0;
-          });
-          await updateStarredArrayInFirebase(cleanStarred);
-        }
-      } else {
-        publicConstructions.value = allPublicConstructions;
+        const cleanStarred = fromArr.filter(fav => {
+          const pos = allPublicConstructions.findIndex(
+            z => fav === z.publicDocId
+          );
+          return pos >= 0;
+        });
+        await updateStarredArrayInFirebase(cleanStarred);
       }
+    } else {
+      publicConstructions.value = allPublicConstructions;
+    }
   }
 
   async function initialize() {
@@ -989,6 +968,26 @@ export const useConstructionStore = defineStore("construction", () => {
     }
   }
 
+  /**
+   * make a tree out of the owned constructions that is directly consumable by vuetify treeview
+   *
+   * @param arr array to convert to a
+   */
+  function treeifyOwnedConstructions(
+    arr: Array<SphericalConstruction>
+  ): TreeviewNode {
+    let root: TreeviewNode = new TreeviewNode(
+      "Owned Constructions",
+      "Owned Constructions"
+    );
+
+    arr.forEach(con => {
+      root.appendChild(con);
+    });
+
+    return root;
+  }
+
   return {
     /* state */
     currentConstructionPreview,
@@ -1004,6 +1003,7 @@ export const useConstructionStore = defineStore("construction", () => {
     makePublic,
     saveConstruction,
     starConstruction,
-    unstarConstruction
+    unstarConstruction,
+    treeifyOwnedConstructions
   };
 });

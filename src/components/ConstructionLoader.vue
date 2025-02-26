@@ -196,20 +196,20 @@ const showDialog = ref(false);
 
 // Add this computed property to your setup function
 const treeItems = computed(() => {
-  return [
+  var items = [
     {
       id: "root",
       title: "Constructions",
       children: [
-        {
-          id: "private",
-          title: t("privateConstructions"),
-          children: filteredPrivateConstructions.value.map(item => ({
-            id: `private-${item.id}`,
-            title: item.description,
-            leaf: true
-          }))
-        },
+        // {
+        //   id: "private",
+        //   title: t("privateConstructions"),
+        //   children: filteredPrivateConstructions.value.map(item => ({
+        //     id: `private-${item.id}`,
+        //     title: item.description,
+        //     leaf: true
+        //   }))
+        // },
         {
           id: "starred",
           title: t("starredConstructions"),
@@ -231,6 +231,14 @@ const treeItems = computed(() => {
       ]
     }
   ];
+
+  items[0].children.unshift(
+    constructionStore.treeifyOwnedConstructions(
+      filteredPrivateConstructions.value
+    ) as any
+  );
+
+  return items;
 });
 
 // watcher to debug updates to treeItems
