@@ -291,6 +291,7 @@ export const useConstructionStore = defineStore("construction", () => {
   const { firebaseUid, starredConstructionIDs, userEmail, includedTools } =
     storeToRefs(acctStore);
   let currentUID: string | undefined = undefined;
+  let starredParsed: boolean = false;
 
   // watch for changes in the firebase collection
   watchDebounced(
@@ -327,30 +328,7 @@ export const useConstructionStore = defineStore("construction", () => {
     () => starredConstructionIDs.value,
     async favorites => {
       console.debug("Starred watcher", favorites);
-      if (favorites.length > 0) {
-        console.debug("List of favorite items", favorites);
-        const [star, unstar] = allPublicConstructions.partition(s => {
-          const isStar = favorites.some(favId => favId === s.publicDocId);
-          return isStar;
-        });
-        starredConstructions.value = star;
-        publicConstructions.value = unstar;
-        if (star.length !== favorites.length) {
-          EventBus.fire("show-alert", {
-            type: "info",
-            key: "Some of your starred constructions are not available anymore"
-          });
-          const cleanStarred = favorites.filter(fav => {
-            const pos = allPublicConstructions.findIndex(
-              z => fav === z.publicDocId
-            );
-            return pos >= 0;
-          });
-          await updateStarredArrayInFirebase(cleanStarred);
-        }
-      } else {
-        publicConstructions.value = allPublicConstructions;
-      }
+      parseStarredConstructions(favorites);
     },
     { deep: true }
   );
@@ -683,6 +661,40 @@ export const useConstructionStore = defineStore("construction", () => {
     );
   }
 
+  /**
+   * parse the starred and unstarred constructions from the firebase collection into arrays
+   *
+   * @param fromArr array of firebase public construction IDs to parse
+   */
+  async function parseStarredConstructions(fromArr: string[])
+  {
+      if (fromArr.length > 0 && allPublicConstructions.length > 0) {
+        console.debug("List of favorite items", fromArr);
+        const [star, unstar] = allPublicConstructions.partition(s => {
+          const isStar = fromArr.some(favId => favId === s.publicDocId);
+          return isStar;
+        });
+        starredConstructions.value = star;
+        publicConstructions.value = unstar;
+        starredParsed = true;
+        if (star.length !== fromArr.length) {
+          EventBus.fire("show-alert", {
+            type: "info",
+            key: "Some of your starred constructions are not available anymore"
+          });
+          const cleanStarred = fromArr.filter(fav => {
+            const pos = allPublicConstructions.findIndex(
+              z => fav === z.publicDocId
+            );
+            return pos >= 0;
+          });
+          await updateStarredArrayInFirebase(cleanStarred);
+        }
+      } else {
+        publicConstructions.value = allPublicConstructions;
+      }
+  }
+
   async function initialize() {
     // This function is invoked from App.vue
     appDB = getFirestore();
@@ -691,8 +703,8 @@ export const useConstructionStore = defineStore("construction", () => {
 
     await parsePublicCollection(allPublicConstructions);
     sortConstructionArray(allPublicConstructions);
+    await parseStarredConstructions(starredConstructionIDs.value);
     publicConstructions.value = allPublicConstructions.slice(0);
-    // console.debug(`Public constructions ${publicConstructions.value.length}`);
   }
 
   /**
@@ -850,7 +862,7 @@ export const useConstructionStore = defineStore("construction", () => {
   async function updateStarredArrayInFirebase(
     arr: Array<string>
   ): Promise<void> {
-    if (firebaseUid.value) {
+    if (firebaseUid.value && starredParsed) {
       const userDocRef = doc(appDB, "users", firebaseUid.value);
       await updateDoc(userDocRef, {
         userStarredConstructions: arr
