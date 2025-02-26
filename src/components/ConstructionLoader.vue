@@ -13,16 +13,97 @@
       :label="t('searchLabel')"
       :hint="searchResult" />
 
-
- <!-- Add the treeview -->
- <v-treeview
-    v-model="selectedItems"
-    :items="treeItems"
-    hoverable
-    activatable
+  <!-- NEW: Button to open dialog-->
+  <div class="mb-4" v-if="firebaseUid && firebaseUid.length > 0">
+  <v-btn
+    color ="#40A082"
     class="mt-4"
-    @update:active="handleNodeSelection"
-  />
+    @click="showDialog = true"
+    block
+    max-width="300px"
+  >
+    Show User File Tree
+  </v-btn>
+  </div>
+
+  <!--NEW: Dialog component with Treeview -->
+  <v-dialog
+      v-if="firebaseUid && firebaseUid.length > 0"
+      v-model="showDialog"
+      max-width="500px"
+    >
+      <v-card
+        color="#E8F5F1"
+        theme="light"
+      >
+        <v-card-title class="text-mint-dark">User File System Tree</v-card-title>
+
+        <!-- NEW: Folder action buttons -->
+        <v-card-text class="pb-0">
+          <v-row>
+            <v-col cols="12">
+              <v-btn-group variant="outlined" class="w-100">
+                <v-btn
+                  color="#40A082"
+                  prepend-icon="mdi-folder-plus"
+                  size="small"
+                >
+                  Create
+                </v-btn>
+                <v-btn
+                  color="#40A082"
+                  prepend-icon="mdi-folder-remove"
+                  size="small"
+                >
+                  Remove
+                </v-btn>
+                <v-btn
+                  color="#40A082"
+                  prepend-icon="mdi-folder-move"
+                  size="small"
+
+                >
+                  Move
+                </v-btn>
+                <v-btn
+                  color="#40A082"
+                  prepend-icon="mdi-content-copy"
+                  size="small"
+                >
+                  Copy
+                </v-btn>
+              </v-btn-group>
+            </v-col>
+          </v-row>
+        </v-card-text>
+
+        <v-card-text>
+          <v-treeview
+            v-model="selectedItems"
+            :items="treeItems"
+            hoverable
+            activatable
+            item-title="title"
+            class="mt-4"
+            color="#40A082"
+            @update:active="handleNodeSelection"
+            return-object
+          >
+            <template v-slot:prepend="{ item }">
+            </template>
+          </v-treeview>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="#40A082"
+            @click="showDialog = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-expansion-panels
       eager
@@ -105,12 +186,6 @@ import { onMounted } from "vue";
 import { VTreeview } from 'vuetify/labs/VTreeview'
 import { createVuetify } from 'vuetify'
 
-// Add this line right after your imports
-const vuetify = createVuetify({
-  components: {
-    VTreeview,
-  },
-})
 
 // Add to your setup function
 const { t } = useI18n();
@@ -130,38 +205,39 @@ const openPanels: Ref<Array<string> | string> = ref("");
 const openMultiple = ref(false);
 const { idle, reset } = useIdle(1000); // wait for 1 second idle
 const selectedItems = ref<string[]>([]);
+const showDialog = ref(false);
 
 // Add this computed property to your setup function
 const treeItems = computed(() => {
   return [
     {
       id: 'root',
-      name: 'Constructions',
+      title: 'Constructions',
       children: [
         {
           id: 'private',
-          name: t('privateConstructions'),
+          title: t('privateConstructions'),
           children: filteredPrivateConstructions.value.map(item => ({
             id: `private-${item.id}`,
-            name: item.description,
+            title: item.description,
             leaf: true
           }))
         },
         {
           id: 'starred',
-          name: t('starredConstructions'),
+          title: t('starredConstructions'),
           children: filteredStarredConstructions.value.map(item => ({
             id: `starred-${item.id}`,
-            name: item.description,
+            title: item.description,
             leaf: true
           }))
         },
         {
           id: 'public',
-          name: t('publicConstructions'),
+          title: t('publicConstructions'),
           children: filteredPublicConstructions.value.map(item => ({
             id: `public-${item.id}`,
-            name: item.description,
+            title: item.description,
             leaf: true
           }))
         }
@@ -169,6 +245,12 @@ const treeItems = computed(() => {
     }
   ];
 });
+
+// watcher to debug updates to treeItems
+watch(()=> treeItems.value, (newValue)=> {
+  console.log('Tree Items Updated:', newValue);
+}, {deep: true});
+
 const handleNodeSelection = (value: string[]) => {
   // Define an array to store selected items
   const selectedItemsArray: string[] = [];
