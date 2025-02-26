@@ -675,12 +675,6 @@ export const useConstructionStore = defineStore("construction", () => {
         (s: SphericalConstruction) => s.parsedScript.length > 0
       )
     );
-
-    /* TMP */
-    console.debug(
-      "owned constructions tree: " +
-        JSON.stringify(treeifyOwnedConstructions(targetArr))
-    );
   }
 
   async function initialize() {
