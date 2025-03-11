@@ -701,8 +701,6 @@ export const useConstructionStore = defineStore("construction", () => {
       });
       starredConstructions.value = starred;
       publicConstructions.value = unstarred;
-      /* TODO remove */
-      return;
 
       if (starred.length !== fromArr.length) {
         EventBus.fire("show-alert", {
@@ -960,11 +958,13 @@ export const useConstructionStore = defineStore("construction", () => {
       /*
         yes, we found the construction in the local store:
           1. increment its star count
-          2. remove it from the local store's list of public constructions,
-          3. add it to the local store's list of starred constructions
-          4. update the star count and user's starred list in firebase
+          2. set its path to an empty string
+          3. remove it from the local store's list of public constructions,
+          4. add it to the local store's list of starred constructions
+          5. update the star count and user's starred list in firebase
        */
       publicConstructions.value[pos].starCount++;
+      publicConstructions.value[pos].path = "";
       const inPublic = publicConstructions.value.splice(pos, 1);
       starredConstructions.value.push(...inPublic);
       starredConstructionIDs.value.push(...inPublic.map(z => z.publicDocId!));
