@@ -670,7 +670,7 @@ export const useConstructionStore = defineStore("construction", () => {
     if (fromArr.length > 0 && publicParsed) {
       console.debug("List of favorite items", fromArr);
       /* parse fromArr into a combination of ID and path */
-      const stars: StarredConstruction[] = [];
+      const stars: Array<StarredConstruction> = [];
       fromArr.forEach(x => {
         const split = x.split("/", 2);
         stars.push({
@@ -681,16 +681,30 @@ export const useConstructionStore = defineStore("construction", () => {
 
       console.debug("parsed stars: " + JSON.stringify(stars));
 
-      const [star, unstar] = allPublicConstructions.partition(s => {
-        const isStar = fromArr.some(favId => favId === s.publicDocId);
-        return isStar;
+      /*
+       * build list of starred and unstarred constructions, setting the path of the starred constructions
+       * to that of the star item rather than the constructions's owned path.
+       */
+      var starred: Array<SphericalConstruction> = [];
+      var unstarred: Array<SphericalConstruction> = [];
+      allPublicConstructions.forEach(s => {
+        var isStarred: boolean = false;
+        for (let star of stars) {
+          if (star.id === s.publicDocId) {
+            s.path = star.path;
+            starred.push(s);
+            isStarred = true;
+            return;
+          }
+        }
+        unstarred.push(s);
       });
-      starredConstructions.value = star;
-      publicConstructions.value = unstar;
+      starredConstructions.value = starred;
+      publicConstructions.value = unstarred;
       /* TODO remove */
       return;
 
-      if (star.length !== fromArr.length) {
+      if (starred.length !== fromArr.length) {
         EventBus.fire("show-alert", {
           type: "info",
           key: "Some of your starred constructions are not available anymore"
