@@ -672,10 +672,10 @@ export const useConstructionStore = defineStore("construction", () => {
       /* parse fromArr into a combination of ID and path */
       const stars: Array<StarredConstruction> = [];
       fromArr.forEach(x => {
-        const split = x.split("/", 2);
+        const splitIdx = x.indexOf("/");
         stars.push({
-          id: split[0],
-          path: split[1] ?? ""
+          id: splitIdx != -1 ? x.slice(0, splitIdx) : x,
+          path: splitIdx != -1 ? x.slice(splitIdx + 1) : ""
         } as StarredConstruction);
       });
 
@@ -688,31 +688,32 @@ export const useConstructionStore = defineStore("construction", () => {
       var starred: Array<SphericalConstruction> = [];
       var unstarred: Array<SphericalConstruction> = [];
       allPublicConstructions.forEach(s => {
-        var isStarred: boolean = false;
-        for (let star of stars) {
-          if (star.id === s.publicDocId) {
-            s.path = star.path;
-            starred.push(s);
-            isStarred = true;
-            return;
-          }
+        const matchingStar = stars.find(star => star.id === s.publicDocId);
+        if (matchingStar != undefined) {
+          s.path = matchingStar.path;
+          starred.push(s);
+        } else {
+          unstarred.push(s);
         }
-        unstarred.push(s);
       });
       starredConstructions.value = starred;
       publicConstructions.value = unstarred;
 
-      if (starred.length !== fromArr.length) {
+      /* if the starred length is not as expected, filter the stars to only include existing
+         constructions and upload the cleaned list to firebase */
+      if (starred.length !== stars.length) {
         EventBus.fire("show-alert", {
           type: "info",
           key: "Some of your starred constructions are not available anymore"
         });
-        const cleanStarred = fromArr.filter(fav => {
-          const pos = allPublicConstructions.findIndex(
-            z => fav === z.publicDocId
-          );
-          return pos >= 0;
-        });
+        /* filter the stars list to only those that reference an existing public construction,
+           then convert to an array of strings based on the id/path combination of the StarredConstruction object */
+        const cleanStarred: Array<string> = stars
+          .filter(star =>
+            allPublicConstructions.some(z => star.id === z.publicDocId)
+          )
+          .map(x => x.id + (x.path.length > 0 ? "/" + x.path : ""));
+
         await updateStarredArrayInFirebase(cleanStarred);
       }
     } else {
