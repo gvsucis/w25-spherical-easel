@@ -174,12 +174,12 @@ function sortConstructionArray(arr: Array<SphericalConstruction>) {
  * TreeviewNode representation with helper classes
  */
 class TreeviewNode {
-  constructor(
-    public id: string,
-    public name: string,
-    public leaf?: boolean,
-    public children?: Array<TreeviewNode>
-  ) {
+  public id: string;
+  public name: string;
+  public leaf: boolean;
+  public children?: Array<TreeviewNode>;
+
+  constructor(id: string, name: string, leaf?: boolean) {
     this.id = id;
     this.name = name;
     this.leaf = leaf ?? false;
@@ -214,7 +214,7 @@ class TreeviewNode {
 
       if (!this.children) {
         /* if this node does not have a children array, give it one and add the folder to it */
-        this.children = [];
+        this.children = Array<TreeviewNode>();
         this.children.push(new TreeviewNode(fullPathChunk, curPath));
         /* recurse */
         return this.children[0].getPathParentNode(remainingPath, fullpath);
@@ -234,13 +234,18 @@ class TreeviewNode {
     } else {
       /* if there is no first slash, assume we are at the right place in the hierarchy for this node */
       /* ensure this node has allocated an array for children */
-      this.children = this.children ?? [];
+      this.children = this.children ?? Array<TreeviewNode>();
       /* return a reference to this node */
       return this;
     }
   }
 
-  public appendChild(child: SphericalConstruction) {
+  /**
+   * add a child node to this one based on its path. Assumes the node being called is the root node in the path.
+   *
+   * @param child SphericalConstruction to append
+   */
+  public appendChildConstruction(child: SphericalConstruction) {
     /* determine the path at which the child is supposed to exist */
     const path = child.path ?? "";
 
@@ -248,6 +253,67 @@ class TreeviewNode {
     parentNode.children!.push(
       new TreeviewNode(child.id, child.description, true)
     );
+  }
+
+  /**
+   * append a TreeviewNode as a child to this node
+   *
+   * @param child TreeviewNode to append
+   */
+  public appendChildNode(child: TreeviewNode) {
+    /* since nodes don't have a concept of path on their own, just append as a child
+    to the callee node */
+    this.children = this.children ?? Array<TreeviewNode>();
+    this.children.push(child);
+  }
+}
+
+class ConstructionTree {
+  /** the root node of our tree */
+  private root: TreeviewNode;
+
+  /** index of the public constructions in the root node's children */
+  private readonly publicIdx = 0;
+  /** index of the owned constructions in the root node's children */
+  private readonly ownedIdx = 1;
+  /** index of the starred constructions in the root node's children */
+  private readonly starredIdx = 2;
+
+  constructor(root_title: string) {
+    this.root = new TreeviewNode("root", root_title, false);
+
+    /* ensure root has space for 3 children allocated for the public/owned/starred constructions */
+    this.root.children = Array<TreeviewNode>(3);
+    this.root.children[this.publicIdx] = new TreeviewNode(
+      "Public Constructions",
+      "Public Constructions",
+      false
+    );
+    this.root.children[this.ownedIdx] = new TreeviewNode(
+      "Owned Constructions",
+      "Owned Constructions",
+      false
+    );
+    this.root.children[this.starredIdx] = new TreeviewNode(
+      "Starred Constructions",
+      "Starred Constructions",
+      false
+    );
+  }
+
+  /** append a construction to the list of public constructions */
+  public addPublicConstruction(construction: SphericalConstruction) {
+    this.root.children![this.publicIdx].appendChildConstruction(construction);
+  }
+
+  /** append a construction to the list of owned constructions */
+  public addOwnedConstruction(construction: SphericalConstruction) {
+    this.root.children![this.ownedIdx].appendChildConstruction(construction);
+  }
+
+  /** append a construction to the list of starred constructions */
+  public addStarredConstruction(construction: SphericalConstruction) {
+    this.root.children![this.starredIdx].appendChildConstruction(construction);
   }
 }
 
@@ -266,7 +332,7 @@ function treeifyOwnedConstructions(
 
   /* TODO append every construction in the array to the root */
   arr.forEach(con => {
-    root.appendChild(con);
+    root.appendChildConstruction(con);
   });
 
   return root;
