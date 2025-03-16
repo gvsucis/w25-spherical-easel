@@ -185,13 +185,19 @@ class TreeviewNode {
     this.leaf = leaf ?? false;
   }
 
+  public getPathParentNode(path: string): TreeviewNode {
+    return this.getPathParentNode(path);
+  }
+
   /**
+   * this function is private as opposed to the public interface lacking the second argument to ensure
+   * it is always called correctly by external consumers of its API
    *
    * @param path path to ensure exists and then return reference to; follows format
    *             'folder0/folder1/folderN/'
    * @param fullpath do not explicitly define this; it is only meant to be used by recursive calls.
    */
-  private getPathParentNode(path: string, fullpath?: string): TreeviewNode {
+  private _getPathParentNode(path: string, fullpath?: string): TreeviewNode {
     /* ensure fullpath is defined, as it won't be at the root */
     fullpath = fullpath ?? this.id + "/" + path;
     /* find the first slash */
@@ -217,18 +223,18 @@ class TreeviewNode {
         this.children = Array<TreeviewNode>();
         this.children.push(new TreeviewNode(fullPathChunk, curPath));
         /* recurse */
-        return this.children[0].getPathParentNode(remainingPath, fullpath);
+        return this.children[0]._getPathParentNode(remainingPath, fullpath);
       } else {
         const childNode = this.children.find(node => node.id === fullPathChunk);
         /* if the child node exists, recurse on it */
         if (childNode) {
-          return childNode.getPathParentNode(remainingPath, fullpath);
+          return childNode._getPathParentNode(remainingPath, fullpath);
         } else {
           /* if the child node does not exist, create it and then recurse on it */
           this.children.push(new TreeviewNode(fullPathChunk, curPath));
           return this.children
             .at(-1)!
-            .getPathParentNode(remainingPath, fullpath);
+            ._getPathParentNode(remainingPath, fullpath);
         }
       }
     } else {
@@ -243,13 +249,17 @@ class TreeviewNode {
   /**
    * add a child node to this one based on its path. Assumes the node being called is the root node in the path.
    *
-   * @param child SphericalConstruction to append
+   * @param child      SphericalConstruction to append
+   * @param parentNode parent node to insert at; if unknown, leave blank to automatically determine.
    */
-  public appendChildConstruction(child: SphericalConstruction) {
+  public appendChildConstruction(
+    child: SphericalConstruction,
+    parentNode?: TreeviewNode
+  ) {
     /* determine the path at which the child is supposed to exist */
     const path = child.path ?? "";
 
-    const parentNode: TreeviewNode = this.getPathParentNode(path);
+    parentNode = parentNode ?? this.getPathParentNode(path);
     parentNode.children!.push(
       new TreeviewNode(child.id, child.description, true)
     );
@@ -301,41 +311,63 @@ class ConstructionTree {
     );
   }
 
-  /** append a construction to the list of public constructions */
-  public addPublicConstruction(construction: SphericalConstruction) {
-    this.root.children![this.publicIdx].appendChildConstruction(construction);
+  /**
+   * clear any existing constructions and build the tree based on the
+   * given lists of public, owned, and starred constructions.
+   *
+   * @param publicConstructions
+   * @param ownedConstructions
+   * @param starredConstructions
+   */
+  public fromArrays(
+    publicConstructions: Ref<Array<SphericalConstruction>>,
+    ownedConstructions: Ref<Array<SphericalConstruction>>,
+    starredConstructions: Ref<Array<SphericalConstruction>>
+  ) {
+    this.clear();
+    this.addPublicConstructions(...publicConstructions.value);
+    this.addOwnedConstructions(...ownedConstructions.value);
+    this.addStarredConstructions(...starredConstructions.value);
   }
 
-  /** append a construction to the list of owned constructions */
-  public addOwnedConstruction(construction: SphericalConstruction) {
-    this.root.children![this.ownedIdx].appendChildConstruction(construction);
+  /**
+   * clear the construction tree, leaving only the 3 subtrees.
+   */
+  private clear() {
+    this.root.children!.forEach(x => {
+      x.children?.clear();
+    });
   }
 
-  /** append a construction to the list of starred constructions */
-  public addStarredConstruction(construction: SphericalConstruction) {
-    this.root.children![this.starredIdx].appendChildConstruction(construction);
+  /** append one or more constructions to the public construction subtree */
+  public addPublicConstructions(...constructions: SphericalConstruction[]) {
+    /* speed this up by finding the parent node once and then putting all constructions
+     * beneath it; this mostly just ensures that we have an existing children array as desired
+     * and avoids running the check multiple times */
+    const parentNode = this.root.children![this.publicIdx].getPathParentNode(
+      constructions[0].path ?? ""
+    );
+
+    constructions.forEach(x =>
+      parentNode.appendChildConstruction(x, parentNode)
+    );
   }
-}
 
-/**
- * make a tree out of the owned constructions that is directly consumable by vuetify treeview
- *
- * @param arr array to convert to a
- */
-function treeifyOwnedConstructions(
-  arr: Array<SphericalConstruction>
-): TreeviewNode {
-  let root: TreeviewNode = new TreeviewNode(
-    "Owned Constructions",
-    "Owned Constructions"
-  );
+  /** append one or more construction to the owned constructions subtree */
+  public addOwnedConstructions(...constructions: SphericalConstruction[]) {
+    constructions.forEach(construction => {
+      this.root.children![this.ownedIdx].appendChildConstruction(construction);
+    });
+  }
 
-  /* TODO append every construction in the array to the root */
-  arr.forEach(con => {
-    root.appendChildConstruction(con);
-  });
-
-  return root;
+  /** append one or more constructions to the starred constructions subtree */
+  public addStarredConstructions(...constructions: SphericalConstruction[]) {
+    constructions.forEach(construction => {
+      this.root.children![this.starredIdx].appendChildConstruction(
+        construction
+      );
+    });
+  }
 }
 
 // define and export a store for constructions of all types
@@ -345,6 +377,9 @@ export const useConstructionStore = defineStore("construction", () => {
   const privateConstructions: Ref<Array<SphericalConstruction>> = ref([]);
   // Public constructions is never null
   const starredConstructions: Ref<Array<SphericalConstruction>> = ref([]);
+  const constructionTree: ConstructionTree = new ConstructionTree(
+    "constructions"
+  );
   const currentConstructionPreview: Ref<string | null> = ref(null);
   const acctStore = useAccountStore();
   const seStore = useSEStore();
@@ -797,6 +832,11 @@ export const useConstructionStore = defineStore("construction", () => {
     sortConstructionArray(allPublicConstructions);
     await parseStarredConstructions(starredConstructionIDs.value);
     publicConstructions.value = allPublicConstructions.slice(0);
+    constructionTree.fromArrays(
+      publicConstructions,
+      privateConstructions,
+      starredConstructions
+    );
   }
 
   /**
