@@ -175,18 +175,18 @@ function sortConstructionArray(arr: Array<SphericalConstruction>) {
  */
 class TreeviewNode {
   public id: string;
-  public name: string;
+  public title: string;
   public leaf: boolean;
   public children?: Array<TreeviewNode>;
 
   constructor(id: string, name: string, leaf?: boolean) {
     this.id = id;
-    this.name = name;
+    this.title = name;
     this.leaf = leaf ?? false;
   }
 
   public getPathParentNode(path: string): TreeviewNode {
-    return this.getPathParentNode(path);
+    return this._getPathParentNode(path);
   }
 
   /**
@@ -289,7 +289,7 @@ class ConstructionTree {
   /** index of the starred constructions in the root node's children */
   private readonly starredIdx = 2;
 
-  constructor(root_title: string) {
+  public constructor(root_title: string) {
     this.root = new TreeviewNode("root", root_title, false);
 
     /* ensure root has space for 3 children allocated for the public/owned/starred constructions */
@@ -328,14 +328,13 @@ class ConstructionTree {
     this.addPublicConstructions(...publicConstructions.value);
     this.addOwnedConstructions(...ownedConstructions.value);
     this.addStarredConstructions(...starredConstructions.value);
-  }
 
-  /**
-   * clear the construction tree, leaving only the 3 subtrees.
-   */
-  private clear() {
-    this.root.children!.forEach(x => {
-      x.children?.clear();
+    // if a member has a zero-length array, delete it so that it doesn't appear to have elements
+    // in the UI view
+    [this.publicIdx, this.ownedIdx, this.starredIdx].forEach(idx => {
+      if (this.root.children![idx].children?.length == 0) {
+        this.root.children![idx].children = undefined;
+      }
     });
   }
 
@@ -348,9 +347,9 @@ class ConstructionTree {
       constructions[0].path ?? ""
     );
 
-    constructions.forEach(x =>
-      parentNode.appendChildConstruction(x, parentNode)
-    );
+    constructions.forEach(x => {
+      parentNode.appendChildConstruction(x, parentNode);
+    });
   }
 
   /** append one or more construction to the owned constructions subtree */
@@ -366,6 +365,27 @@ class ConstructionTree {
       this.root.children![this.starredIdx].appendChildConstruction(
         construction
       );
+    });
+  }
+
+  /**
+   * @returns an array containing the root node of the tree structure
+   */
+  public getRootAsArr(): TreeviewNode[] {
+    /*
+     * I don't like this function since it returns a mutable reference to the private root element
+     * this class maintains, but it's not worth it to make a deep copy every time and it is necessary for
+     * the root to be accessible outside of this class since the treeview component needs to use it.
+     */
+    return [this.root];
+  }
+
+  /**
+   * clear the construction tree, leaving only the 3 subtrees.
+   */
+  private clear() {
+    this.root.children!.forEach(x => {
+      x.children?.clear();
     });
   }
 }
@@ -417,6 +437,13 @@ export const useConstructionStore = defineStore("construction", () => {
           return !myOwnPublic && !inMyStarList;
         });
         publicConstructions.value = theirs;
+
+        // update the constructions tree
+        constructionTree.fromArrays(
+          publicConstructions,
+          privateConstructions,
+          starredConstructions
+        );
       } else {
         privateConstructions.value.splice(0);
         publicConstructions.value = allPublicConstructions.slice(0);
@@ -756,7 +783,6 @@ export const useConstructionStore = defineStore("construction", () => {
     */
     targetArr.push(
       ...constructionArray.filter(
-        // TODO test this
         (s: SphericalConstruction) => s.parsedScript.length > 0
       )
     );
@@ -1129,6 +1155,7 @@ export const useConstructionStore = defineStore("construction", () => {
     privateConstructions,
     publicConstructions,
     starredConstructions,
+    constructionTree,
 
     /* functions */
     deleteConstruction,
