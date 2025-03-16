@@ -452,6 +452,20 @@ export const useConstructionStore = defineStore("construction", () => {
     { debounce: 500 /* milliseconds */ }
   );
 
+  /* watch for updates in the private constructions list and ensure they are applied to
+   * the tree view */
+  watchDebounced(
+    privateConstructions,
+    async _ => {
+      constructionTree.fromArrays(
+        publicConstructions,
+        privateConstructions,
+        starredConstructions
+      );
+    },
+    { debounce: 500 /* milliseconds */ }
+  );
+
   // watch for changes in starred constructions
   watch(
     () => starredConstructionIDs.value,
@@ -858,11 +872,14 @@ export const useConstructionStore = defineStore("construction", () => {
     sortConstructionArray(allPublicConstructions);
     await parseStarredConstructions(starredConstructionIDs.value);
     publicConstructions.value = allPublicConstructions.slice(0);
-    constructionTree.fromArrays(
-      publicConstructions,
-      privateConstructions,
-      starredConstructions
-    );
+    /* only update tree view if UID exists since it isn't displayed otherwise */
+    if (firebaseUid) {
+      constructionTree.fromArrays(
+        publicConstructions,
+        privateConstructions,
+        starredConstructions
+      );
+    }
   }
 
   /**
