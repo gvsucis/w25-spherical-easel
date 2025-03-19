@@ -42,12 +42,6 @@
               <v-btn-group variant="outlined" class="w-100">
                 <v-btn
                   color="#40A082"
-                  prepend-icon="mdi-folder-plus"
-                  size="small">
-                  Create
-                </v-btn>
-                <v-btn
-                  color="#40A082"
                   prepend-icon="mdi-folder-remove"
                   size="small">
                   Remove
