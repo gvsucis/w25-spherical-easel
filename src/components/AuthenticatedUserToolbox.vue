@@ -52,7 +52,7 @@
       <template #icon>mdi-file-export</template>
     </HintButton>
   </div>
-
+ <!-- TODO:  -->
   <Dialog
     ref="saveConstructionDialog"
     :title="
@@ -85,6 +85,22 @@
       :label="
         t('construction.saveOverwrite', { docId: constructionDocId })
       "></v-switch>
+   <!-- v-treeview for Folder Selection -->
+      <v-treeview
+          v-model="selectedFolder"
+          :items="treeItems"
+          selectable
+          dense
+          hoverable
+          activatable
+          item-value="id"
+          item-title="title"
+          return-object
+          class="mt-4"
+          @update:active="handleNodeSelection"
+        >
+            <template v-slot:prepend="{ item }"></template>
+        </v-treeview>
   </Dialog>
   <Dialog
     ref="exportConstructionDialog"
@@ -277,6 +293,18 @@ import { Vector3 } from "three";
 import SETTINGS from "@/global-settings";
 import { SEAntipodalPoint } from "@/models/SEAntipodalPoint";
 import { SEIntersectionPoint } from "@/models/SEIntersectionPoint";
+
+// Selected folder where the user wants to save
+const selectedFolder: Ref<string | undefined> = ref(undefined);
+
+// Handle tree selection
+const handleNodeSelection = (selected: string[]) => {
+  if (selected && selected.length > 0) {
+    selectedFolder.value = selected[0];
+    console.log("Selected folder:", selectedFolder.value);
+  }
+};
+
 enum SecretKeyState {
   NONE,
   ACCEPT_S,
@@ -378,6 +406,30 @@ onKeyDown(
     }
   },
   { dedupe: true } // ignore repeated key events when keys are held down
+);
+
+// Computed tree items
+const treeItems = computed(() => {
+  return [
+    {
+      id: "private",
+      title: "Private Constructions",
+      children: privateConstructions.value.map((item) => ({
+        id: `private-${item.id}`,
+        title: item.description,
+        leaf: true,
+      })),
+    },
+  ]
+});
+
+// watcher to debug updates to treeItems
+watch(
+  () => treeItems.value,
+  newValue => {
+    console.log("Tree items updated in new file: ", newValue);
+  },
+  { deep: true }
 );
 
 const isMyOwnConstruction = computed((): boolean => {
