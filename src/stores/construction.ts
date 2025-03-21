@@ -1209,6 +1209,87 @@ export const useConstructionStore = defineStore("construction", () => {
     }
   }
 
+  /**
+   * check if a construction path is valid
+   * @param path path to check the validity of
+   * @returns true if valid, false otherwise
+   */
+  function isConstructionPathValid(path: string): boolean {
+    /* special case: empty string */
+    if (path.length == 0) {
+      return true;
+    }
+
+    /* paths are expected to be in the format
+     *    "path/to/folder/"
+     * with no leading slash and no empty names (I.E., "path//to//thing" would have two empty names)
+     */
+    return (
+      !path.startsWith("/") &&
+      path.endsWith("/") &&
+      path.split("/").every(name => name.length > 0)
+    );
+  }
+
+  /**
+   * move one or more constructions to a new destination.
+   *
+   * @param to destination path as a string
+   * @param constructionIDs construction IDs to move
+   * @returns true if every construction was successfully moved, false otherwise
+   */
+  async function moveConstructions(
+    to: string,
+    ...constructionIDs: Array<string>
+  ): Promise<boolean> {
+    var success: boolean = true;
+
+    // ensure to has a trailing slash
+    if (!to.endsWith("/")) {
+      to += "/";
+    }
+
+    // validate the destination path
+    if (isConstructionPathValid(to)) {
+      // iterate over every passed construction ID
+      constructionIDs.forEach(id => {
+        // determine if the construction is owned or starred
+        var isOwned: boolean | undefined = undefined;
+        var index = 0;
+
+        /* search owned constructions first */
+        index = privateConstructions.value.findIndex(
+          construction => construction.id === id
+        );
+        if (index != -1) {
+          isOwned = true;
+        }
+
+        /* if we didn't find the construction in the owned list, check the starred list */
+        if (!isOwned || isOwned === undefined) {
+          index = starredConstructions.value.findIndex(
+            construction => construction.id === id
+          );
+          if (index != -1) {
+            isOwned = false;
+          }
+        }
+
+        /* make sure we found the construction */
+        if (isOwned === undefined) {
+          success = false;
+          return;
+        }
+
+        /* TODO unfinished, untested */
+      });
+    } else {
+      success = false;
+    }
+
+    return success;
+  }
+
   return {
     /* state */
     currentConstructionPreview,
@@ -1225,6 +1306,8 @@ export const useConstructionStore = defineStore("construction", () => {
     makePublic,
     saveConstruction,
     starConstruction,
-    unstarConstruction
+    unstarConstruction,
+    isConstructionPathValid,
+    moveConstructions
   };
 });
