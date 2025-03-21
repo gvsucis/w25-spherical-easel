@@ -179,10 +179,17 @@ class TreeviewNode {
   public leaf: boolean;
   public children?: Array<TreeviewNode>;
 
-  constructor(id: string, name: string, leaf?: boolean) {
+  constructor(id: string, title: string, leaf?: boolean) {
     this.id = id;
-    this.title = name;
+    this.title = title;
     this.leaf = leaf ?? false;
+  }
+
+  /**
+   * get a copy of this node; does not copy children.
+   */
+  public copy(): TreeviewNode {
+    return new TreeviewNode(this.id, this.title, this.leaf);
   }
 
   public getPathParentNode(path: string): TreeviewNode {
@@ -354,7 +361,57 @@ class ConstructionTree {
   /**
    * get a copy of the tree without any of the leaves, leaving only the folders
    */
-  // public getLeafless(): Array<TreeviewNode> {}
+  public getLeafless(): Array<TreeviewNode> {
+    var leafless: Array<TreeviewNode> = [];
+
+    this.root.forEach(rootNode => {
+      leafless.push(rootNode.copy());
+      leafless.at(-1)!.children = this._getLeafless(rootNode);
+    });
+
+    return leafless;
+  }
+
+  /**
+   * recursive function to get all the non-leaf nodes in the tree. GetLeafless() without
+   * the leading underscore is provided as a public interface since we can't directly recurse
+   * on the top level of the tree; instead we have to iterate over the top level and recurse on
+   * each root node.
+   *
+   * @param node current node
+   */
+  private _getLeafless(node: TreeviewNode): Array<TreeviewNode> | undefined {
+    /* base case: node with no children */
+    if (
+      node.children === null ||
+      node.children === undefined ||
+      node.children!.length == 0
+    ) {
+      return undefined;
+    }
+
+    var leafless: Array<TreeviewNode> = [];
+
+    node.children!.forEach(child => {
+      if (!child.leaf) {
+        /* copy the child */
+        var copy: TreeviewNode = child.copy();
+        /* add it to the array */
+        leafless.push(copy);
+        /* recurse on the child */
+        const children = this._getLeafless(child);
+        if (children != undefined && children.length > 0) {
+          copy.children = children;
+        } else {
+          /* previously non-leaf nodes must now become leaf nodes to avoid looking weird
+           * in the UI */
+          copy.leaf = true;
+        }
+      }
+    });
+
+    return leafless;
+  }
 
   /**
    * @returns an array containing the root node of the tree structure
