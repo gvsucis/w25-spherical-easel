@@ -195,7 +195,7 @@ const showDialog = ref(false);
 
 // Add this computed property to your setup function
 const treeItems = computed(() => {
-  return constructionStore.constructionTree.getRootAsArr();
+  return constructionStore.constructionTree.getRoot();
 });
 
 // watcher to debug updates to treeItems

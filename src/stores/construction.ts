@@ -279,8 +279,8 @@ class TreeviewNode {
 }
 
 class ConstructionTree {
-  /** the root node of our tree */
-  private root: TreeviewNode;
+  /** the root of our tree */
+  private root: Array<TreeviewNode>;
 
   /** index of the public constructions in the root node's children */
   private readonly publicIdx = 0;
@@ -290,21 +290,23 @@ class ConstructionTree {
   private readonly starredIdx = 2;
 
   public constructor(root_title: string) {
-    this.root = new TreeviewNode("root", root_title, false);
-
     /* ensure root has space for 3 children allocated for the public/owned/starred constructions */
-    this.root.children = Array<TreeviewNode>(3);
-    this.root.children[this.publicIdx] = new TreeviewNode(
+    this.root = Array<TreeviewNode>(3);
+
+    /* we don't list public constructions in the view this tree is meant to represent,
+     * but the user should still be able to select the "folder" containing them so that
+     * they can view the public constructions */
+    this.root[this.publicIdx] = new TreeviewNode(
       "Public Constructions",
       "Public Constructions",
       false
     );
-    this.root.children[this.ownedIdx] = new TreeviewNode(
+    this.root[this.ownedIdx] = new TreeviewNode(
       "Owned Constructions",
       "Owned Constructions",
       false
     );
-    this.root.children[this.starredIdx] = new TreeviewNode(
+    this.root[this.starredIdx] = new TreeviewNode(
       "Starred Constructions",
       "Starred Constructions",
       false
@@ -315,76 +317,62 @@ class ConstructionTree {
    * clear any existing constructions and build the tree based on the
    * given lists of public, owned, and starred constructions.
    *
-   * @param publicConstructions
    * @param ownedConstructions
    * @param starredConstructions
    */
   public fromArrays(
-    publicConstructions: Ref<Array<SphericalConstruction>>,
     ownedConstructions: Ref<Array<SphericalConstruction>>,
     starredConstructions: Ref<Array<SphericalConstruction>>
   ) {
     this.clear();
-    this.addPublicConstructions(...publicConstructions.value);
     this.addOwnedConstructions(...ownedConstructions.value);
     this.addStarredConstructions(...starredConstructions.value);
 
     // if a member has a zero-length array, delete it so that it doesn't appear to have elements
     // in the UI view
     [this.publicIdx, this.ownedIdx, this.starredIdx].forEach(idx => {
-      if (this.root.children![idx].children?.length == 0) {
-        this.root.children![idx].children = undefined;
+      if (this.root[idx].children?.length == 0) {
+        this.root[idx].children = undefined;
       }
-    });
-  }
-
-  /** append one or more constructions to the public construction subtree */
-  public addPublicConstructions(...constructions: SphericalConstruction[]) {
-    /* speed this up by finding the parent node once and then putting all constructions
-     * beneath it; this mostly just ensures that we have an existing children array as desired
-     * and avoids running the check multiple times */
-    const parentNode = this.root.children![this.publicIdx].getPathParentNode(
-      constructions[0].path ?? ""
-    );
-
-    constructions.forEach(x => {
-      parentNode.appendChildConstruction(x, parentNode);
     });
   }
 
   /** append one or more construction to the owned constructions subtree */
   public addOwnedConstructions(...constructions: SphericalConstruction[]) {
     constructions.forEach(construction => {
-      this.root.children![this.ownedIdx].appendChildConstruction(construction);
+      this.root[this.ownedIdx].appendChildConstruction(construction);
     });
   }
 
   /** append one or more constructions to the starred constructions subtree */
   public addStarredConstructions(...constructions: SphericalConstruction[]) {
     constructions.forEach(construction => {
-      this.root.children![this.starredIdx].appendChildConstruction(
-        construction
-      );
+      this.root[this.starredIdx].appendChildConstruction(construction);
     });
   }
 
   /**
+   * get a copy of the tree without any of the leaves, leaving only the folders
+   */
+  // public getLeafless(): Array<TreeviewNode> {}
+
+  /**
    * @returns an array containing the root node of the tree structure
    */
-  public getRootAsArr(): TreeviewNode[] {
+  public getRoot(): Array<TreeviewNode> {
     /*
      * I don't like this function since it returns a mutable reference to the private root element
      * this class maintains, but it's not worth it to make a deep copy every time and it is necessary for
      * the root to be accessible outside of this class since the treeview component needs to use it.
      */
-    return [this.root];
+    return this.root;
   }
 
   /**
    * clear the construction tree, leaving only the 3 subtrees.
    */
   private clear() {
-    this.root.children!.forEach(x => {
+    this.root.forEach(x => {
       x.children?.clear();
     });
   }
@@ -439,11 +427,7 @@ export const useConstructionStore = defineStore("construction", () => {
         publicConstructions.value = theirs;
 
         // update the constructions tree
-        constructionTree.fromArrays(
-          publicConstructions,
-          privateConstructions,
-          starredConstructions
-        );
+        constructionTree.fromArrays(privateConstructions, starredConstructions);
       } else {
         privateConstructions.value.splice(0);
         publicConstructions.value = allPublicConstructions.slice(0);
@@ -457,11 +441,7 @@ export const useConstructionStore = defineStore("construction", () => {
   watchDebounced(
     privateConstructions,
     async _ => {
-      constructionTree.fromArrays(
-        publicConstructions,
-        privateConstructions,
-        starredConstructions
-      );
+      constructionTree.fromArrays(privateConstructions, starredConstructions);
     },
     { debounce: 500 /* milliseconds */ }
   );
@@ -874,11 +854,7 @@ export const useConstructionStore = defineStore("construction", () => {
     publicConstructions.value = allPublicConstructions.slice(0);
     /* only update tree view if UID exists since it isn't displayed otherwise */
     if (firebaseUid) {
-      constructionTree.fromArrays(
-        publicConstructions,
-        privateConstructions,
-        starredConstructions
-      );
+      constructionTree.fromArrays(privateConstructions, starredConstructions);
     }
   }
 
