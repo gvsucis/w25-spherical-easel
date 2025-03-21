@@ -334,14 +334,6 @@ class ConstructionTree {
     this.clear();
     this.addOwnedConstructions(...ownedConstructions.value);
     this.addStarredConstructions(...starredConstructions.value);
-
-    // if a member has a zero-length array, delete it so that it doesn't appear to have elements
-    // in the UI view
-    [this.publicIdx, this.ownedIdx, this.starredIdx].forEach(idx => {
-      if (this.root[idx].children?.length == 0) {
-        this.root[idx].children = undefined;
-      }
-    });
   }
 
   /** append one or more construction to the owned constructions subtree */
@@ -351,11 +343,31 @@ class ConstructionTree {
     });
   }
 
+  /**
+   * clear the owned constructions and replace them with a new list
+   */
+  public setOwnedConstructions(
+    constructions: Ref<Array<SphericalConstruction>>
+  ) {
+    this.root[this.ownedIdx].children?.clear();
+    this.addOwnedConstructions(...constructions.value);
+  }
+
   /** append one or more constructions to the starred constructions subtree */
   public addStarredConstructions(...constructions: SphericalConstruction[]) {
     constructions.forEach(construction => {
       this.root[this.starredIdx].appendChildConstruction(construction);
     });
+  }
+
+  /**
+   * clear the starred constructions and replace them with a new list
+   */
+  public setStarredConstructions(
+    constructions: Ref<Array<SphericalConstruction>>
+  ) {
+    this.root[this.starredIdx].children?.clear();
+    this.addStarredConstructions(...constructions.value);
   }
 
   /**
@@ -482,9 +494,6 @@ export const useConstructionStore = defineStore("construction", () => {
           return !myOwnPublic && !inMyStarList;
         });
         publicConstructions.value = theirs;
-
-        // update the constructions tree
-        constructionTree.fromArrays(privateConstructions, starredConstructions);
       } else {
         privateConstructions.value.splice(0);
         publicConstructions.value = allPublicConstructions.slice(0);
@@ -498,7 +507,7 @@ export const useConstructionStore = defineStore("construction", () => {
   watchDebounced(
     privateConstructions,
     async _ => {
-      constructionTree.fromArrays(privateConstructions, starredConstructions);
+      constructionTree.setOwnedConstructions(privateConstructions);
     },
     { debounce: 500 /* milliseconds */ }
   );
@@ -508,7 +517,8 @@ export const useConstructionStore = defineStore("construction", () => {
     () => starredConstructionIDs.value,
     async favorites => {
       console.debug("Starred watcher", favorites);
-      parseStarredConstructions(favorites);
+      await parseStarredConstructions(favorites);
+      constructionTree.setStarredConstructions(starredConstructions);
     },
     { deep: true }
   );
