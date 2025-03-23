@@ -1278,10 +1278,17 @@ export const useConstructionStore = defineStore("construction", () => {
         /* make sure we found the construction */
         if (isOwned === undefined) {
           success = false;
+          /* return in a foreach is effectively the same as continue */
           return;
         }
 
-        /* TODO unfinished, untested */
+        if (isOwned) {
+          /* TODO test */
+          /* change the path of the owned construction */
+          privateConstructions.value.at(index)!.path = to;
+        } else {
+          /* TODO need to update some logic with starred constructions before they can be moved */
+        }
       });
     } else {
       success = false;
