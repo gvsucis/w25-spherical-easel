@@ -2,7 +2,8 @@ import {
   ConstructionInFirestore,
   SphericalConstruction,
   ConstructionScript,
-  PublicConstructionInFirestore
+  PublicConstructionInFirestore,
+  StarredConstruction
 } from "@/types";
 import { Command } from "@/commands/Command";
 import { defineStore } from "pinia";
@@ -43,6 +44,7 @@ import { watch } from "vue";
 import { mergeIntoImageUrl } from "@/utils/helpingfunctions";
 import { watchDebounced, watchPausable } from "@vueuse/core";
 import EventBus from "@/eventHandlers/EventBus";
+import { i } from "vite/dist/node/types.d-aGj9QkWt";
 
 let appStorage: FirebaseStorage;
 let appDB: Firestore;
@@ -154,7 +156,8 @@ async function parseDocument(
     publicDocId: remoteDoc.publicDocId,
     // use the parsed tools from firebase if valid, otherwise leave them undefined.
     tools: remoteDoc.tools ?? undefined,
-    starCount: remoteDoc.starCount
+    starCount: remoteDoc.starCount,
+    path: remoteDoc.path ?? undefined
   } as SphericalConstruction);
 }
 
@@ -167,6 +170,226 @@ function sortConstructionArray(arr: Array<SphericalConstruction>) {
   arr.sort((a, b) => a.id.localeCompare(b.id));
 }
 
+/**
+ * TreeviewNode representation with helper classes
+ */
+class TreeviewNode {
+  public id: string;
+  public title: string;
+  public leaf: boolean;
+  public children?: Array<TreeviewNode>;
+
+  constructor(id: string, name: string, leaf?: boolean) {
+    this.id = id;
+    this.title = name;
+    this.leaf = leaf ?? false;
+  }
+
+  public getPathParentNode(path: string): TreeviewNode {
+    return this._getPathParentNode(path);
+  }
+
+  /**
+   * this function is private as opposed to the public interface lacking the second argument to ensure
+   * it is always called correctly by external consumers of its API
+   *
+   * @param path path to ensure exists and then return reference to; follows format
+   *             'folder0/folder1/folderN/'
+   * @param fullpath do not explicitly define this; it is only meant to be used by recursive calls.
+   */
+  private _getPathParentNode(path: string, fullpath?: string): TreeviewNode {
+    /* ensure fullpath is defined, as it won't be at the root */
+    fullpath = fullpath ?? this.id + "/" + path;
+    /* find the first slash */
+    const firstSlashIndex: number = path.indexOf("/");
+    if (firstSlashIndex >= 0) {
+      /* if the first slash exists, split the string into the current path and the remaining path */
+      const curPath: string = path.slice(0, firstSlashIndex);
+      const remainingPath: string = path.slice(firstSlashIndex + 1);
+
+      /* use the path up to this point as a unique ID since duplicate paths can't exist - note that
+       * this may still cause problems if the same paths exist in private and starred constructions since
+       * this function is unaware of the name of root node. */
+      var fullPathChunk: string = fullpath;
+      if (remainingPath.length > 0) {
+        fullPathChunk = fullPathChunk.replace("/" + remainingPath, "");
+        if (fullPathChunk.at(-1) != "/") {
+          fullPathChunk += "/";
+        }
+      }
+
+      if (!this.children) {
+        /* if this node does not have a children array, give it one and add the folder to it */
+        this.children = Array<TreeviewNode>();
+        this.children.push(new TreeviewNode(fullPathChunk, curPath));
+        /* recurse */
+        return this.children[0]._getPathParentNode(remainingPath, fullpath);
+      } else {
+        const childNode = this.children.find(node => node.id === fullPathChunk);
+        /* if the child node exists, recurse on it */
+        if (childNode) {
+          return childNode._getPathParentNode(remainingPath, fullpath);
+        } else {
+          /* if the child node does not exist, create it and then recurse on it */
+          this.children.push(new TreeviewNode(fullPathChunk, curPath));
+          return this.children
+            .at(-1)!
+            ._getPathParentNode(remainingPath, fullpath);
+        }
+      }
+    } else {
+      /* if there is no first slash, assume we are at the right place in the hierarchy for this node */
+      /* ensure this node has allocated an array for children */
+      this.children = this.children ?? Array<TreeviewNode>();
+      /* return a reference to this node */
+      return this;
+    }
+  }
+
+  /**
+   * add a child node to this one based on its path. Assumes the node being called is the root node in the path.
+   *
+   * @param child      SphericalConstruction to append
+   * @param parentNode parent node to insert at; if unknown, leave blank to automatically determine.
+   */
+  public appendChildConstruction(
+    child: SphericalConstruction,
+    parentNode?: TreeviewNode
+  ) {
+    /* determine the path at which the child is supposed to exist */
+    const path = child.path ?? "";
+
+    parentNode = parentNode ?? this.getPathParentNode(path);
+    parentNode.children!.push(
+      new TreeviewNode(child.id, child.description, true)
+    );
+  }
+
+  /**
+   * append a TreeviewNode as a child to this node
+   *
+   * @param child TreeviewNode to append
+   */
+  public appendChildNode(child: TreeviewNode) {
+    /* since nodes don't have a concept of path on their own, just append as a child
+    to the callee node */
+    this.children = this.children ?? Array<TreeviewNode>();
+    this.children.push(child);
+  }
+}
+
+class ConstructionTree {
+  /** the root node of our tree */
+  private root: TreeviewNode;
+
+  /** index of the public constructions in the root node's children */
+  private readonly publicIdx = 0;
+  /** index of the owned constructions in the root node's children */
+  private readonly ownedIdx = 1;
+  /** index of the starred constructions in the root node's children */
+  private readonly starredIdx = 2;
+
+  public constructor(root_title: string) {
+    this.root = new TreeviewNode("root", root_title, false);
+
+    /* ensure root has space for 3 children allocated for the public/owned/starred constructions */
+    this.root.children = Array<TreeviewNode>(3);
+    this.root.children[this.publicIdx] = new TreeviewNode(
+      "Public Constructions",
+      "Public Constructions",
+      false
+    );
+    this.root.children[this.ownedIdx] = new TreeviewNode(
+      "Owned Constructions",
+      "Owned Constructions",
+      false
+    );
+    this.root.children[this.starredIdx] = new TreeviewNode(
+      "Starred Constructions",
+      "Starred Constructions",
+      false
+    );
+  }
+
+  /**
+   * clear any existing constructions and build the tree based on the
+   * given lists of public, owned, and starred constructions.
+   *
+   * @param publicConstructions
+   * @param ownedConstructions
+   * @param starredConstructions
+   */
+  public fromArrays(
+    publicConstructions: Ref<Array<SphericalConstruction>>,
+    ownedConstructions: Ref<Array<SphericalConstruction>>,
+    starredConstructions: Ref<Array<SphericalConstruction>>
+  ) {
+    this.clear();
+    this.addPublicConstructions(...publicConstructions.value);
+    this.addOwnedConstructions(...ownedConstructions.value);
+    this.addStarredConstructions(...starredConstructions.value);
+
+    // if a member has a zero-length array, delete it so that it doesn't appear to have elements
+    // in the UI view
+    [this.publicIdx, this.ownedIdx, this.starredIdx].forEach(idx => {
+      if (this.root.children![idx].children?.length == 0) {
+        this.root.children![idx].children = undefined;
+      }
+    });
+  }
+
+  /** append one or more constructions to the public construction subtree */
+  public addPublicConstructions(...constructions: SphericalConstruction[]) {
+    /* speed this up by finding the parent node once and then putting all constructions
+     * beneath it; this mostly just ensures that we have an existing children array as desired
+     * and avoids running the check multiple times */
+    const parentNode = this.root.children![this.publicIdx].getPathParentNode(
+      constructions[0].path ?? ""
+    );
+
+    constructions.forEach(x => {
+      parentNode.appendChildConstruction(x, parentNode);
+    });
+  }
+
+  /** append one or more construction to the owned constructions subtree */
+  public addOwnedConstructions(...constructions: SphericalConstruction[]) {
+    constructions.forEach(construction => {
+      this.root.children![this.ownedIdx].appendChildConstruction(construction);
+    });
+  }
+
+  /** append one or more constructions to the starred constructions subtree */
+  public addStarredConstructions(...constructions: SphericalConstruction[]) {
+    constructions.forEach(construction => {
+      this.root.children![this.starredIdx].appendChildConstruction(
+        construction
+      );
+    });
+  }
+
+  /**
+   * @returns an array containing the root node of the tree structure
+   */
+  public getRootAsArr(): TreeviewNode[] {
+    /*
+     * I don't like this function since it returns a mutable reference to the private root element
+     * this class maintains, but it's not worth it to make a deep copy every time and it is necessary for
+     * the root to be accessible outside of this class since the treeview component needs to use it.
+     */
+    return [this.root];
+  }
+
+  /**
+   * clear the construction tree, leaving only the 3 subtrees.
+   */
+  private clear() {
+    this.root.children!.forEach(x => {
+      x.children?.clear();
+    });
+  }
+}
+
 // define and export a store for constructions of all types
 export const useConstructionStore = defineStore("construction", () => {
   const allPublicConstructions: Array<SphericalConstruction> = [];
@@ -174,6 +397,9 @@ export const useConstructionStore = defineStore("construction", () => {
   const privateConstructions: Ref<Array<SphericalConstruction>> = ref([]);
   // Public constructions is never null
   const starredConstructions: Ref<Array<SphericalConstruction>> = ref([]);
+  const constructionTree: ConstructionTree = new ConstructionTree(
+    "constructions"
+  );
   const currentConstructionPreview: Ref<string | null> = ref(null);
   const acctStore = useAccountStore();
   const seStore = useSEStore();
@@ -211,10 +437,31 @@ export const useConstructionStore = defineStore("construction", () => {
           return !myOwnPublic && !inMyStarList;
         });
         publicConstructions.value = theirs;
+
+        // update the constructions tree
+        constructionTree.fromArrays(
+          publicConstructions,
+          privateConstructions,
+          starredConstructions
+        );
       } else {
         privateConstructions.value.splice(0);
         publicConstructions.value = allPublicConstructions.slice(0);
       }
+    },
+    { debounce: 500 /* milliseconds */ }
+  );
+
+  /* watch for updates in the private constructions list and ensure they are applied to
+   * the tree view */
+  watchDebounced(
+    privateConstructions,
+    async _ => {
+      constructionTree.fromArrays(
+        publicConstructions,
+        privateConstructions,
+        starredConstructions
+      );
     },
     { debounce: 500 /* milliseconds */ }
   );
@@ -543,13 +790,13 @@ export const useConstructionStore = defineStore("construction", () => {
     const constructionArray: Array<SphericalConstruction> = await Promise.all(
       parseTask
     );
+    /* clear the existing targetArr list */
     targetArr.splice(0);
     /*
       push the newly parsed and downloaded constructions into the array
     */
     targetArr.push(
       ...constructionArray.filter(
-        // TODO test this
         (s: SphericalConstruction) => s.parsedScript.length > 0
       )
     );
@@ -563,23 +810,51 @@ export const useConstructionStore = defineStore("construction", () => {
   async function parseStarredConstructions(fromArr: string[]) {
     if (fromArr.length > 0 && publicParsed) {
       console.debug("List of favorite items", fromArr);
-      const [star, unstar] = allPublicConstructions.partition(s => {
-        const isStar = fromArr.some(favId => favId === s.publicDocId);
-        return isStar;
+      /* parse fromArr into a combination of ID and path */
+      const stars: Array<StarredConstruction> = [];
+      fromArr.forEach(x => {
+        const splitIdx = x.indexOf("/");
+        stars.push({
+          id: splitIdx != -1 ? x.slice(0, splitIdx) : x,
+          path: splitIdx != -1 ? x.slice(splitIdx + 1) : ""
+        } as StarredConstruction);
       });
-      starredConstructions.value = star;
-      publicConstructions.value = unstar;
-      if (star.length !== fromArr.length) {
+
+      console.debug("parsed stars: " + JSON.stringify(stars));
+
+      /*
+       * build list of starred and unstarred constructions, setting the path of the starred constructions
+       * to that of the star item rather than the constructions's owned path.
+       */
+      var starred: Array<SphericalConstruction> = [];
+      var unstarred: Array<SphericalConstruction> = [];
+      allPublicConstructions.forEach(s => {
+        const matchingStar = stars.find(star => star.id === s.publicDocId);
+        if (matchingStar != undefined) {
+          s.path = matchingStar.path;
+          starred.push(s);
+        } else {
+          unstarred.push(s);
+        }
+      });
+      starredConstructions.value = starred;
+      publicConstructions.value = unstarred;
+
+      /* if the starred length is not as expected, filter the stars to only include existing
+         constructions and upload the cleaned list to firebase */
+      if (starred.length !== stars.length) {
         EventBus.fire("show-alert", {
           type: "info",
           key: "Some of your starred constructions are not available anymore"
         });
-        const cleanStarred = fromArr.filter(fav => {
-          const pos = allPublicConstructions.findIndex(
-            z => fav === z.publicDocId
-          );
-          return pos >= 0;
-        });
+        /* filter the stars list to only those that reference an existing public construction,
+           then convert to an array of strings based on the id/path combination of the StarredConstruction object */
+        const cleanStarred: Array<string> = stars
+          .filter(star =>
+            allPublicConstructions.some(z => star.id === z.publicDocId)
+          )
+          .map(x => x.id + (x.path.length > 0 ? "/" + x.path : ""));
+
         await updateStarredArrayInFirebase(cleanStarred);
       }
     } else {
@@ -597,6 +872,14 @@ export const useConstructionStore = defineStore("construction", () => {
     sortConstructionArray(allPublicConstructions);
     await parseStarredConstructions(starredConstructionIDs.value);
     publicConstructions.value = allPublicConstructions.slice(0);
+    /* only update tree view if UID exists since it isn't displayed otherwise */
+    if (firebaseUid) {
+      constructionTree.fromArrays(
+        publicConstructions,
+        privateConstructions,
+        starredConstructions
+      );
+    }
   }
 
   /**
@@ -825,11 +1108,13 @@ export const useConstructionStore = defineStore("construction", () => {
       /*
         yes, we found the construction in the local store:
           1. increment its star count
-          2. remove it from the local store's list of public constructions,
-          3. add it to the local store's list of starred constructions
-          4. update the star count and user's starred list in firebase
+          2. set its path to an empty string
+          3. remove it from the local store's list of public constructions,
+          4. add it to the local store's list of starred constructions
+          5. update the star count and user's starred list in firebase
        */
       publicConstructions.value[pos].starCount++;
+      publicConstructions.value[pos].path = "";
       const inPublic = publicConstructions.value.splice(pos, 1);
       starredConstructions.value.push(...inPublic);
       starredConstructionIDs.value.push(...inPublic.map(z => z.publicDocId!));
@@ -887,6 +1172,7 @@ export const useConstructionStore = defineStore("construction", () => {
     privateConstructions,
     publicConstructions,
     starredConstructions,
+    constructionTree,
 
     /* functions */
     deleteConstruction,

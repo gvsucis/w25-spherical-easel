@@ -1,4 +1,3 @@
-
 <template>
   <div class="pt-2 mr-2" id="cloader">
     <!--- WARNING: the "id" attribs below are needed for testing -->
@@ -44,29 +43,26 @@
                   color="#40A082"
                   prepend-icon="mdi-folder-move"
                   size="small"
-                  @click="moveConstruction"
-                  >Move
+                  @click="moveConstruction">
+                  Move
                 </v-btn>
-
               </v-btn-group>
             </v-col>
           </v-row>
           <v-row class="mt-4">
-          <v-col cols="12">
-            <v-text-field
-              v-model="newFolderName"
-              label="New Folder Name"
-              variant="outlined"
-              dense
-            />
-            <v-text-field
-              v-model="parentFolder"
-              label="New Folder Location"
-              variant="outlined"
-              dense
-            />
-          </v-col>
-        </v-row>
+            <v-col cols="12">
+              <v-text-field
+                v-model="newFolderName"
+                label="New Folder Name"
+                variant="outlined"
+                dense />
+              <v-text-field
+                v-model="parentFolder"
+                label="New Folder Location"
+                variant="outlined"
+                dense />
+            </v-col>
+          </v-row>
         </v-card-text>
 
         <v-card-text>
@@ -81,9 +77,8 @@
             @update:active="handleNodeSelection"
             return-object
             :select-strategy="'leaf'"
-           @click:open="onOpen"
-           @click:select="onSelect"
-          >
+            @click:open="onOpen"
+            @click:select="onSelect">
             <template v-slot:prepend="{ item }"></template>
           </v-treeview>
         </v-card-text>
@@ -177,7 +172,6 @@ import { useAccountStore } from "@/stores/account";
 import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
-import { createVuetify } from "vuetify";
 
 // Add to your setup function
 const { t } = useI18n();
@@ -203,21 +197,21 @@ const checkedConstructions = ref<string[]>([]); // For checkbox selection
 const newFolderName = ref(""); // Add new ref for folder name
 const parentFolder = ref(""); // Add new ref for folder name
 
-function onSelect(a : any)  {
-      // This function fires when a leaf node is selected
-      console.log("Select a leaf", a)
-      // const fullPath = a.path.map(x => x.title).join(" ==> ")
-      // console.debug("Full path is ", fullPath)
+function onSelect(a: any) {
+  // This function fires when a leaf node is selected
+  console.log("Select a leaf", a);
+  // const fullPath = a.path.map(x => x.title).join(" ==> ")
+  // console.debug("Full path is ", fullPath)
 }
 
 function onOpen(a: any) {
-      // this function fires when an interior node is selected
-      console.log("Interior node is ", a.value ? "Expanded" : "Collapsed")
-      // const fullPath = a.path.map(x => x.title).join(" ==> ")
-      // console.debug("Full path is ", fullPath)
+  // this function fires when an interior node is selected
+  console.log("Interior node is ", a.value ? "Expanded" : "Collapsed");
+  // const fullPath = a.path.map(x => x.title).join(" ==> ")
+  // console.debug("Full path is ", fullPath)
 }
 const moveConstruction = () => {
-  if (checkedConstructions .value.length === 0) {
+  if (checkedConstructions.value.length === 0) {
     alert("Please select a construction to move.");
     return;
   }
@@ -232,25 +226,31 @@ const moveConstruction = () => {
 
   // Determine the type of construction (private, starred, public)
   checkedConstructions.value.forEach(selectedConstructionId => {
-  let constructionType = "";
-  if (selectedConstructionId.startsWith("private-")) {
-    constructionType = "private";
-  } else if (selectedConstructionId.startsWith("starred-")) {
-    constructionType = "starred";
-  } else if (selectedConstructionId.startsWith("public-")) {
-    constructionType = "public";
-  }
+    let constructionType = "";
+    if (selectedConstructionId.startsWith("private-")) {
+      constructionType = "private";
+    } else if (selectedConstructionId.startsWith("starred-")) {
+      constructionType = "starred";
+    } else if (selectedConstructionId.startsWith("public-")) {
+      constructionType = "public";
+    }
 
-  // Get the construction object
-  let constructionToMove: SphericalConstruction | undefined;
-  if (constructionType === "private") {
-    constructionToMove = privateConstructions.value.find(c => `private-${c.id}` === selectedConstructionId);
-  } else if (constructionType === "starred") {
-    constructionToMove = starredConstructions.value.find(c => `starred-${c.id}` === selectedConstructionId);
-  } else if (constructionType === "public") {
-    constructionToMove = publicConstructions.value.find(c => `public-${c.id}` === selectedConstructionId);
-  }
-  if (constructionToMove) {
+    // Get the construction object
+    let constructionToMove: SphericalConstruction | undefined;
+    if (constructionType === "private") {
+      constructionToMove = privateConstructions.value.find(
+        c => `private-${c.id}` === selectedConstructionId
+      );
+    } else if (constructionType === "starred") {
+      constructionToMove = starredConstructions.value.find(
+        c => `starred-${c.id}` === selectedConstructionId
+      );
+    } else if (constructionType === "public") {
+      constructionToMove = publicConstructions.value.find(
+        c => `public-${c.id}` === selectedConstructionId
+      );
+    }
+    if (constructionToMove) {
       constructionsToMove.push(constructionToMove);
     }
   });
@@ -259,28 +259,23 @@ const moveConstruction = () => {
     return;
   }
 
-// ... (move logic) ...
+  // ... (move logic) ...
 
-console.log(`Moving constructions: ${constructionsToMove.map(c => c.id).join(', ')} to folder: ${newFolderName.value}`);
+  console.log(
+    `Moving constructions: ${constructionsToMove
+      .map(c => c.id)
+      .join(", ")} to folder: ${newFolderName.value}`
+  );
 
-newFolderName.value = "";
-showDialog.value = false;
+  newFolderName.value = "";
+  showDialog.value = false;
 };
 
 // Add this computed property to your setup function
 const treeItems = computed(() => {
-  return [
-    {
-      id: "private",
-      title: t("privateConstructions"),
-      children: filteredPrivateConstructions.value.map(item => ({
-        id: `private-${item.id}`,
-        title: item.description,
-        leaf: true, // Ensures it's treated as a leaf node
-      }))
-    },
-  ]
+  return constructionStore.constructionTree.getRootAsArr();
 });
+
 // watcher to debug updates to treeItems
 watch(
   () => treeItems.value,
