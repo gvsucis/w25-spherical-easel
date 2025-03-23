@@ -273,7 +273,17 @@ const moveConstruction = () => {
 
 // Add this computed property to your setup function
 const treeItems = computed(() => {
-  return constructionStore.constructionTree.getRootAsArr();
+  return [
+    {
+      id: "private",
+      title: "Private Constructions",
+      children: privateConstructions.value.map((item) => ({
+        id: `private-${item.id}`,
+        title: item.description,
+        leaf: true,
+      })),
+    },
+  ]
 });
 
 // watcher to debug updates to treeItems

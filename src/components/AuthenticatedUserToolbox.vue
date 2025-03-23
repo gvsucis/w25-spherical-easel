@@ -293,6 +293,7 @@ import { Vector3 } from "three";
 import SETTINGS from "@/global-settings";
 import { SEAntipodalPoint } from "@/models/SEAntipodalPoint";
 import { SEIntersectionPoint } from "@/models/SEIntersectionPoint";
+import { VTreeview, VTreeviewItem } from "vuetify/labs/VTreeview";
 
 // Selected folder where the user wants to save
 const selectedFolder: Ref<string | undefined> = ref(undefined);
