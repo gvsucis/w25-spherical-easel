@@ -52,40 +52,77 @@
       <template #icon>mdi-file-export</template>
     </HintButton>
   </div>
-
   <Dialog
-    ref="saveConstructionDialog"
-    :title="
-      isSavedAsPublicConstruction
-        ? t('savePublicConstructionDialogTitle')
-        : t('savePrivateConstructionDialogTitle')
-    "
-    :yes-text="t('saveAction')"
-    :no-text="t('cancelAction')"
-    :yes-action="doSave"
-    max-width="40%">
+  ref="saveConstructionDialog"
+  :title="
+    isSavedAsPublicConstruction
+      ? t('savePublicConstructionDialogTitle')
+      : t('savePrivateConstructionDialogTitle')
+  "
+  :yes-text="t('saveAction')"
+  :no-text="t('cancelAction')"
+  :yes-action="doSave"
+  max-width="40%">
+  <v-text-field
+    type="text"
+    density="compact"
+    clearable
+    counter
+    persistent-hint
+    :label="t('construction.saveDescription')"
+    required
+    v-model="constructionDescription"
+    @keypress.stop></v-text-field>
+  <v-switch
+    v-model="isSavedAsPublicConstruction"
+    :disabled="!firebaseUid"
+    :label="t('construction.makePublic')"></v-switch>
+  <v-switch
+    v-if="isMyOwnConstruction"
+    v-model="shouldSaveOverwrite"
+    :disabled="!firebaseUid"
+    :label="
+      t('construction.saveOverwrite', { docId: constructionDocId })
+    "></v-switch>
+  
+  <!-- Folder Selection Section -->
+  <div class="my-2">
+    <v-divider class="mb-2"></v-divider>
+    <h3 class="text-subtitle-1 mb-2">Select or Enter Folder Path</h3>
+    
+    <!-- Folder path input -->
     <v-text-field
-      type="text"
+      v-model="folderPath"
+      label="Folder Path (e.g., Math/Geometry)"
       density="compact"
-      clearable
-      counter
+      hint="Enter a new or existing folder path"
       persistent-hint
-      :label="t('construction.saveDescription')"
-      required
-      v-model="constructionDescription"
-      @keypress.stop></v-text-field>
-    <v-switch
-      v-model="isSavedAsPublicConstruction"
-      :disabled="!firebaseUid"
-      :label="t('construction.makePublic')"></v-switch>
-    <v-switch
-      v-if="isMyOwnConstruction"
-      v-model="shouldSaveOverwrite"
-      :disabled="!firebaseUid"
-      :label="
-        t('construction.saveOverwrite', { docId: constructionDocId })
-      "></v-switch>
-  </Dialog>
+      clearable
+      @keypress.stop
+    ></v-text-field>
+    
+    <!-- Existing Folders Treeview -->
+    <p class="text-caption mt-2 mb-1">Or select an existing folder:</p>
+    <v-treeview
+      v-model:active="selectedFolder"
+      :items="treeItems"
+      selectable
+      dense
+      hoverable
+      activatable
+      item-value="id"
+      item-title="title"
+      open-all 
+      class="mt-1 folder-tree"
+      color="#40A082"
+      @update:active="handleNodeSelection"
+    >
+      <template v-slot:prepend="{ item }">
+        <v-icon>{{ item.icon || 'mdi-folder' }}</v-icon>
+      </template>
+    </v-treeview>
+  </div>
+</Dialog>
   <Dialog
     ref="exportConstructionDialog"
     :title="t('exportConstructionDialogTitle')"
@@ -277,6 +314,9 @@ import { Vector3 } from "three";
 import SETTINGS from "@/global-settings";
 import { SEAntipodalPoint } from "@/models/SEAntipodalPoint";
 import { SEIntersectionPoint } from "@/models/SEIntersectionPoint";
+import { VTreeview } from 'vuetify/labs/VTreeview';
+
+
 enum SecretKeyState {
   NONE,
   ACCEPT_S,
@@ -378,6 +418,88 @@ onKeyDown(
     }
   },
   { dedupe: true } // ignore repeated key events when keys are held down
+);
+
+const folderPath = ref("");
+const selectedFolder = ref<string[]>([]);
+const existingFolders = ref<string[]>([]);
+
+// Handle tree selection
+const handleNodeSelection = (selected: string[]) => {
+  if (selected && selected.length > 0) {
+    // Update this line to assign an array with one element
+    selectedFolder.value = [selected[0]]; 
+    console.log("Selected folder:", selectedFolder.value[0]);
+  }
+};
+
+// Modified doSave function to include the folder
+async function doSave(): Promise<void> {
+  constructionStore
+    .saveConstruction(
+      constructionDocId.value,
+      constructionDescription.value,
+      isSavedAsPublicConstruction.value,
+      folderPath.value // Add this parameter to pass the folder name
+    )
+    .then((docId: string) => {
+      // Force a refresh of the treeview data
+      setTimeout(() => {
+        // This creates a shallow copy of the array, triggering reactivity
+        privateConstructions.value = [...privateConstructions.value];
+      }, 500);
+      EventBus.fire("show-alert", {
+        key: "constructions.firestoreConstructionSaved",
+        keyOptions: { docId },
+        type: "info"
+      });
+      seStore.clearUnsavedFlag();
+    })
+    .catch((err: Error) => {
+      console.error("Can't save document", err.message);
+      EventBus.fire("show-alert", {
+        key: t("construction.firestoreSaveError", { error: err }),
+        keyOptions: { error: err },
+        type: "error"
+      });
+    })
+    .finally(() => {
+      saveConstructionDialog.value?.hide();
+    });
+}
+const treeItems = computed(() => {
+  // Get unique folders
+  const folders = new Set<string>();
+  privateConstructions.value.forEach(construction => {
+    if (construction.folder) {
+      folders.add(construction.folder);
+    }
+  });
+  
+  // Log for debugging
+  console.log("Available folders:", Array.from(folders));
+  
+  return [
+    {
+      id: 'private',
+      title: 'Private Constructions',
+      icon: 'mdi-folder', // Add icon for root node
+      children: Array.from(folders).map(folder => ({
+        id: folder,
+        title: folder,
+        icon: 'mdi-folder' // Make sure icon is defined for each child
+      }))
+    }
+  ];
+});
+
+// watcher to debug updates to treeItems
+watch(
+  () => treeItems.value,
+  newValue => {
+    console.log("Tree items updated in new file: ", newValue);
+  },
+  { deep: true }
 );
 
 const isMyOwnConstruction = computed((): boolean => {
@@ -555,34 +677,6 @@ async function doLoginOrLogout() {
   } else {
     router.replace({ path: "/account" });
   }
-}
-
-async function doSave(): Promise<void> {
-  constructionStore
-    .saveConstruction(
-      constructionDocId.value,
-      constructionDescription.value,
-      isSavedAsPublicConstruction.value
-    )
-    .then((docId: string) => {
-      EventBus.fire("show-alert", {
-        key: "constructions.firestoreConstructionSaved",
-        keyOptions: { docId },
-        type: "info"
-      });
-      seStore.clearUnsavedFlag();
-    })
-    .catch((err: Error) => {
-      console.error("Can't save document", err.message);
-      EventBus.fire("show-alert", {
-        key: t("construction.firestoreSaveError", { error: err }),
-        keyOptions: { error: err },
-        type: "error"
-      });
-    })
-    .finally(() => {
-      saveConstructionDialog.value?.hide();
-    });
 }
 
 function updateExportPreview(): void {

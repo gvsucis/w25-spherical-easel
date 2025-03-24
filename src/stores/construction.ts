@@ -125,7 +125,8 @@ async function parseDocument(
     preview: svgData ?? "",
     publicDocId: remoteDoc.publicDocId,
     tools: remoteDoc.tools ?? undefined,
-    starCount: remoteDoc.starCount
+    starCount: remoteDoc.starCount,
+    folder: remoteDoc.folder
   } as SphericalConstruction);
 }
 
@@ -232,7 +233,8 @@ export const useConstructionStore = defineStore("construction", () => {
   async function saveConstruction(
     constructionDocId: null | string,
     constructionDescription: string,
-    saveAsPublic: boolean
+    saveAsPublic: boolean,
+    folder: string = "Default"
   ): Promise<string> {
     // By the time doSave() is called, svgCanvas must have been set
     // to it is safe to non-null assert svgCanvas.value
@@ -335,6 +337,7 @@ export const useConstructionStore = defineStore("construction", () => {
       // the actual script will be determine below
       script: "",
       preview: "",
+      folder: folder,
       // TODO: check this may have to be grabbed from the existing doc in #1a
       starCount: 0
     };

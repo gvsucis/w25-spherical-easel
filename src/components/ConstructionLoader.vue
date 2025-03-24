@@ -1,4 +1,3 @@
-
 <template>
   <div class="pt-2 mr-2" id="cloader">
     <!--- WARNING: the "id" attribs below are needed for testing -->
@@ -13,30 +12,27 @@
       :label="t('searchLabel')"
       :hint="searchResult" />
 
-  <!-- NEW: Button to open dialog-->
-  <div class="mb-4" v-if="firebaseUid && firebaseUid.length > 0">
-  <v-btn
-    color ="#40A082"
-    class="mt-4"
-    @click="showDialog = true"
-    block
-    max-width="300px"
-  >
-    Show User File Tree
-  </v-btn>
-  </div>
+    <!-- NEW: Button to open dialog-->
+    <div class="mb-4" v-if="firebaseUid && firebaseUid.length > 0">
+      <v-btn
+        color="#40A082"
+        class="mt-4"
+        @click="showDialog = true"
+        block
+        max-width="300px">
+        Show User File Tree
+      </v-btn>
+    </div>
 
-  <!--NEW: Dialog component with Treeview -->
-  <v-dialog
+    <!--NEW: Dialog component with Treeview -->
+    <v-dialog
       v-if="firebaseUid && firebaseUid.length > 0"
       v-model="showDialog"
-      max-width="500px"
-    >
-      <v-card
-        color="#E8F5F1"
-        theme="light"
-      >
-        <v-card-title class="text-mint-dark">User File System Tree</v-card-title>
+      max-width="500px">
+      <v-card color="#E8F5F1" theme="light">
+        <v-card-title class="text-mint-dark">
+          User File System Tree
+        </v-card-title>
 
         <!-- NEW: Folder action buttons -->
         <v-card-text class="pb-0">
@@ -45,41 +41,36 @@
               <v-btn-group variant="outlined" class="w-100">
                 <v-btn
                   color="#40A082"
-                  prepend-icon="mdi-folder-plus"
-                  size="small"
-                >
-                  Create
-                </v-btn>
-                <v-btn
-                  color="#40A082"
-                  prepend-icon="mdi-folder-remove"
-                  size="small"
-                >
-                  Remove
-                </v-btn>
-                <v-btn
-                  color="#40A082"
                   prepend-icon="mdi-folder-move"
                   size="small"
+                  @click="moveConstruction"
+                  >Move
+                </v-btn>
 
-                >
-                  Move
-                </v-btn>
-                <v-btn
-                  color="#40A082"
-                  prepend-icon="mdi-content-copy"
-                  size="small"
-                >
-                  Copy
-                </v-btn>
               </v-btn-group>
             </v-col>
           </v-row>
+          <v-row class="mt-4">
+          <v-col cols="12">
+            <v-text-field
+              v-model="newFolderName"
+              label="New Folder Name"
+              variant="outlined"
+              dense
+            />
+            <v-text-field
+              v-model="parentFolder"
+              label="New Folder Location"
+              variant="outlined"
+              dense
+            />
+          </v-col>
+        </v-row>
         </v-card-text>
 
         <v-card-text>
           <v-treeview
-            v-model="selectedItems"
+            v-model:selected="checkedConstructions"
             :items="treeItems"
             hoverable
             activatable
@@ -88,19 +79,16 @@
             color="#40A082"
             @update:active="handleNodeSelection"
             return-object
+            :select-strategy="'leaf'"
+           @click:open="onOpen"
+           @click:select="onSelect"
           >
-            <template v-slot:prepend="{ item }">
-            </template>
+            <template v-slot:prepend="{ item }"></template>
           </v-treeview>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn
-            color="#40A082"
-            @click="showDialog = false"
-          >
-            Close
-          </v-btn>
+          <v-btn color="#40A082" @click="showDialog = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -135,14 +123,18 @@
       <v-expansion-panel
         data-testid="starredPanel"
         value="starred"
-        v-if="filteredStarredConstructions.length > 0 && firebaseUid && firebaseUid.length > 0">
+        v-if="
+          filteredStarredConstructions.length > 0 &&
+          firebaseUid &&
+          firebaseUid.length > 0
+        ">
         <v-expansion-panel-title>
           {{ t(`starredConstructions`) }} ({{
             filteredStarredConstructions.length
           }})
         </v-expansion-panel-title>
         <v-expansion-panel-text data-testid="starredList">
-          Starred {{starredConstructionIDs}}
+          Starred {{ starredConstructionIDs }}
           <ConstructionList
             :allow-sharing="false"
             :items="filteredStarredConstructions" />
@@ -183,10 +175,8 @@ import { SphericalConstruction } from "@/types";
 import { useAccountStore } from "@/stores/account";
 import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
-import { VTreeview } from 'vuetify/labs/VTreeview'
-import { createVuetify } from 'vuetify'
-
-
+import { VTreeview } from "vuetify/labs/VTreeview";
+import { createVuetify } from "vuetify";
 
 // Add to your setup function
 const { t } = useI18n();
@@ -207,64 +197,111 @@ const openMultiple = ref(false);
 const { idle, reset } = useIdle(1000); // wait for 1 second idle
 const selectedItems = ref<string[]>([]);
 const showDialog = ref(false);
+const selectedTreeNodes = ref<string[]>([]); // For tree node selection
+const checkedConstructions = ref<string[]>([]); // For checkbox selection
+const newFolderName = ref(""); // Add new ref for folder name
+const parentFolder = ref(""); // Add new ref for folder name
+
+function onSelect(a : any)  {
+      // This function fires when a leaf node is selected
+      console.log("Select a leaf", a)
+      // const fullPath = a.path.map(x => x.title).join(" ==> ")
+      // console.debug("Full path is ", fullPath)
+}
+
+function onOpen(a: any) {
+      // this function fires when an interior node is selected
+      console.log("Interior node is ", a.value ? "Expanded" : "Collapsed")
+      // const fullPath = a.path.map(x => x.title).join(" ==> ")
+      // console.debug("Full path is ", fullPath)
+}
+const moveConstruction = () => {
+  if (checkedConstructions .value.length === 0) {
+    alert("Please select a construction to move.");
+    return;
+  }
+  if (!newFolderName.value) {
+    alert("Please enter a folder name.");
+    return;
+  }
+
+  const constructionsToMove: SphericalConstruction[] = [];
+  // Get the selected construction ID
+  const selectedConstructionId = selectedItems.value[0]; // Assuming only one item can be selected for move
+
+  // Determine the type of construction (private, starred, public)
+  checkedConstructions.value.forEach(selectedConstructionId => {
+  let constructionType = "";
+  if (selectedConstructionId.startsWith("private-")) {
+    constructionType = "private";
+  } else if (selectedConstructionId.startsWith("starred-")) {
+    constructionType = "starred";
+  } else if (selectedConstructionId.startsWith("public-")) {
+    constructionType = "public";
+  }
+
+  // Get the construction object
+  let constructionToMove: SphericalConstruction | undefined;
+  if (constructionType === "private") {
+    constructionToMove = privateConstructions.value.find(c => `private-${c.id}` === selectedConstructionId);
+  } else if (constructionType === "starred") {
+    constructionToMove = starredConstructions.value.find(c => `starred-${c.id}` === selectedConstructionId);
+  } else if (constructionType === "public") {
+    constructionToMove = publicConstructions.value.find(c => `public-${c.id}` === selectedConstructionId);
+  }
+  if (constructionToMove) {
+      constructionsToMove.push(constructionToMove);
+    }
+  });
+  if (constructionsToMove.length === 0) {
+    alert("No constructions found.");
+    return;
+  }
+
+// ... (move logic) ...
+
+console.log(`Moving constructions: ${constructionsToMove.map(c => c.id).join(', ')} to folder: ${newFolderName.value}`);
+
+newFolderName.value = "";
+showDialog.value = false;
+};
 
 // Add this computed property to your setup function
 const treeItems = computed(() => {
   return [
     {
-      id: 'root',
-      title: 'Constructions',
-      children: [
-        {
-          id: 'private',
-          title: t('privateConstructions'),
-          children: filteredPrivateConstructions.value.map(item => ({
-            id: `private-${item.id}`,
-            title: item.description,
-            leaf: true
-          }))
-        },
-        {
-          id: 'starred',
-          title: t('starredConstructions'),
-          children: filteredStarredConstructions.value.map(item => ({
-            id: `starred-${item.id}`,
-            title: item.description,
-            leaf: true
-          }))
-        },
-        {
-          id: 'public',
-          title: t('publicConstructions'),
-          children: filteredPublicConstructions.value.map(item => ({
-            id: `public-${item.id}`,
-            title: item.description,
-            leaf: true
-          }))
-        }
-      ]
-    }
-  ];
+      id: "private",
+      title: t("privateConstructions"),
+      children: filteredPrivateConstructions.value.map(item => ({
+        id: `private-${item.id}`,
+        title: item.description,
+        leaf: true, // Ensures it's treated as a leaf node
+      }))
+    },
+  ]
 });
-
 // watcher to debug updates to treeItems
-watch(()=> treeItems.value, (newValue)=> {
-  console.log('Tree Items Updated:', newValue);
-}, {deep: true});
+watch(
+  () => treeItems.value,
+  newValue => {
+    console.log("Tree Items Updated:", newValue);
+  },
+  { deep: true }
+);
 
 const handleNodeSelection = (value: string[]) => {
   // Define an array to store selected items
   const selectedItemsArray: string[] = [];
 
   // Check and add matching items
-  if (value.includes('private')) {
-    selectedItemsArray.push('private');
+  if (value.includes("private")) {
+    selectedItemsArray.push("private");
   }
-  if (value.includes('starred')) {
-    selectedItemsArray.push('starred');
+  if (value.includes("starred")) {
+    selectedItemsArray.push("starred");
   }
-  if (value.includes('public')) {
-    selectedItemsArray.push('public');
+  if (value.includes("public")) {
+    selectedItemsArray.push("public");
   }
 
   // Update openPanels with the selected items
@@ -273,8 +310,6 @@ const handleNodeSelection = (value: string[]) => {
   // Ensure selectedItems is also updated as an array
   selectedItems.value = [...selectedItemsArray]; // Correctly updates the array
 };
-
-
 
 onMounted(() => {
   filteredPublicConstructions.value.push(...publicConstructions.value);
@@ -288,7 +323,7 @@ watch(idle, (isIdle: boolean) => {
     return;
   }
   if (lastSearchKey === searchKey.value) {
-    reset()
+    reset();
     return;
   }
   if (searchKey.value.length == 0) {
@@ -352,7 +387,7 @@ watch(idle, (isIdle: boolean) => {
       });
     }
   }
-  reset()
+  reset();
 });
 
 watch(
@@ -361,18 +396,21 @@ watch(
     () => publicConstructions.value,
     () => starredConstructions.value
   ],
-  ([privateList, publicList, starredList],
-    [oldPrivateList, oldPublicList, oldStarredList]) => {
+  (
+    [privateList, publicList, starredList],
+    [oldPrivateList, oldPublicList, oldStarredList]
+  ) => {
     // console.debug(`Private changed ${oldPrivateList.length} => ${privateList.length}`)
     // console.debug(`Public changed ${oldPublicList.length} => ${publicList.length}`)
     // console.debug(`Starred changed ${oldStarredList.length} => ${starredList.length}`)
-    filteredPrivateConstructions.value.splice(0)
-    filteredPrivateConstructions.value.push(...privateList)
-    filteredPublicConstructions.value.splice(0)
-    filteredPublicConstructions.value.push(...publicList)
-    filteredStarredConstructions.value.splice(0)
-    filteredStarredConstructions.value.push(...starredList)
-  }, {deep: true}
+    filteredPrivateConstructions.value.splice(0);
+    filteredPrivateConstructions.value.push(...privateList);
+    filteredPublicConstructions.value.splice(0);
+    filteredPublicConstructions.value.push(...publicList);
+    filteredStarredConstructions.value.splice(0);
+    filteredStarredConstructions.value.push(...starredList);
+  },
+  { deep: true }
 );
 </script>
 <i18n locale="en" lang="json">
