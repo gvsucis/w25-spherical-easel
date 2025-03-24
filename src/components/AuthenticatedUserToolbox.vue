@@ -471,8 +471,8 @@ const treeItems = computed(() => {
   // Get unique folders
   const folders = new Set<string>();
   privateConstructions.value.forEach(construction => {
-    if (construction.folder) {
-      folders.add(construction.folder);
+    if (construction.path) {
+      folders.add(construction.path);
     }
   });
   
