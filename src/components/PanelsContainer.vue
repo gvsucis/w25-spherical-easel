@@ -64,6 +64,7 @@
   import { SphericalConstruction } from "src/types";
   import { useI18n } from "vue-i18n";
   import { ref } from 'vue';
+  import ConstructionList from "./ConstructionList.vue";
 
 
   // Get the translation function
@@ -105,3 +106,11 @@
     emit("update:openPanels", newValue);
   };
   </script>
+  <i18n locale="en" lang="json">
+{
+  "privateConstructions": "Private Constructions",
+  "publicConstructions": "Public Constructions",
+  "starredConstructions" : "Starred Constructions"
+
+}
+  </i18n>
