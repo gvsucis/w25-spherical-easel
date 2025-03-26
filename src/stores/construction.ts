@@ -170,6 +170,22 @@ function sortConstructionArray(arr: Array<SphericalConstruction>) {
   arr.sort((a, b) => a.id.localeCompare(b.id));
 }
 
+function starredIDsToParsed(
+  fromArr: Array<String>
+): Array<StarredConstruction> {
+  const stars: Array<StarredConstruction> = [];
+
+  fromArr.forEach(x => {
+    const splitIdx = x.indexOf("/");
+    stars.push({
+      id: splitIdx != -1 ? x.slice(0, splitIdx) : x,
+      path: splitIdx != -1 ? x.slice(splitIdx + 1) : ""
+    } as StarredConstruction);
+  });
+
+  return stars;
+}
+
 /**
  * TreeviewNode representation with helper classes
  */
@@ -858,14 +874,7 @@ export const useConstructionStore = defineStore("construction", () => {
     if (fromArr.length > 0 && publicParsed) {
       console.debug("List of favorite items", fromArr);
       /* parse fromArr into a combination of ID and path */
-      const stars: Array<StarredConstruction> = [];
-      fromArr.forEach(x => {
-        const splitIdx = x.indexOf("/");
-        stars.push({
-          id: splitIdx != -1 ? x.slice(0, splitIdx) : x,
-          path: splitIdx != -1 ? x.slice(splitIdx + 1) : ""
-        } as StarredConstruction);
-      });
+      const stars = starredIDsToParsed(fromArr);
 
       console.debug("parsed stars: " + JSON.stringify(stars));
 
