@@ -12,7 +12,7 @@
         block
         max-width="300px"
       >
-        Show User File Tree
+        Construction Organization
       </v-btn>
     </div>
 
@@ -26,14 +26,14 @@
       @move="moveConstruction"
     />
 
-    <!-- Folder Actions Component -->
+    <!-- Folder Actions Component
     <FolderActions
       :newFolderName="newFolderName"
       :parentFolder="parentFolder"
       @update:newFolderName="newFolderName = $event"
       @update:parentFolder="parentFolder = $event"
       @move="moveConstructionHandler"
-    />
+    /> -->
 
     <!-- Panels for Constructions -->
     <PanelsContainer
@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import SearchBar from "@/components/SearchBar.vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
@@ -88,20 +88,48 @@ const treeItems = ref([
   {
     id: "private",
     title: "Private Constructions",
-    children: [],
+    children: privateConstructions.value.map(construction => ({
+      id: construction.id,
+      title: construction.description
+    })),
   },
   {
     id: "starred",
     title: "Starred Constructions",
-    children: [],
+    children: starredConstructions.value.map(construction => ({
+      id: construction.id,
+      title: construction.description
+    })),
   },
   {
     id: "public",
     title: "Public Constructions",
-    children: [],
+    children: publicConstructions.value.map(construction => ({
+      id: construction.id,
+      title: construction.description
+    })),
   },
 ]);
+watch(privateConstructions, (newVal) => {
+  treeItems.value[0].children = newVal.map(construction => ({
+    id: construction.id,
+    title: construction.description
+  }));
+});
 
+watch(starredConstructions, (newVal) => {
+  treeItems.value[1].children = newVal.map(construction => ({
+    id: construction.id,
+    title: construction.description
+  }));
+});
+
+watch(publicConstructions, (newVal) => {
+  treeItems.value[2].children = newVal.map(construction => ({
+    id: construction.id,
+    title: construction.description
+  }));
+});
 // Tree Handler Setup
 const { selectedItems, openPanels, handleNodeSelection } = useTreeHandler(
   treeItems.value

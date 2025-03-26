@@ -39,7 +39,7 @@
   </template>
 
   <script lang="ts" setup>
-  import { defineProps, defineEmits, ref } from 'vue';
+  import { defineProps, defineEmits, ref, onMounted } from 'vue';
   import FolderActions from '@/components/FolderActions.vue';
 
   const props = defineProps({
@@ -71,6 +71,10 @@
   function handleUpdateModelValue(newValue: boolean) {
     emit('update:modelValue', newValue);
   }
+  onMounted(() => {
+  console.log('Tree items:', props.treeItems);
+});
+
   </script>
 
   <style scoped>

@@ -657,6 +657,7 @@ export interface SphericalConstruction extends ConstructionInFirestore {
   parsedScript: ConstructionScript;
   sphereRotationMatrix: Matrix4;
   objectCount: number;
+  path?: string;
   // previewData: string;
 }
 
