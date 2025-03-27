@@ -170,22 +170,6 @@ function sortConstructionArray(arr: Array<SphericalConstruction>) {
   arr.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function starredIDsToParsed(
-  fromArr: Array<String>
-): Array<StarredConstruction> {
-  const stars: Array<StarredConstruction> = [];
-
-  fromArr.forEach(x => {
-    const splitIdx = x.indexOf("/");
-    stars.push({
-      id: splitIdx != -1 ? x.slice(0, splitIdx) : x,
-      path: splitIdx != -1 ? x.slice(splitIdx + 1) : ""
-    } as StarredConstruction);
-  });
-
-  return stars;
-}
-
 /**
  * TreeviewNode representation with helper classes
  */
@@ -871,10 +855,10 @@ export const useConstructionStore = defineStore("construction", () => {
    * @param fromArr array of firebase public construction IDs to parse
    */
   async function parseStarredConstructions(fromArr: string[]) {
-    if (fromArr.length > 0 && publicParsed) {
+    if (publicParsed) {
       console.debug("List of favorite items", fromArr);
       /* parse fromArr into a combination of ID and path */
-      const stars = starredIDsToParsed(fromArr);
+      const stars: Array<StarredConstruction> = fromArr.map(parseStarredID);
 
       console.debug("parsed stars: " + JSON.stringify(stars));
 
@@ -1104,15 +1088,17 @@ export const useConstructionStore = defineStore("construction", () => {
    * of 5. Note that star counts cannot be negative - if the delta would result in a negative
    * value, the value is clamped to 0.
    *
-   * @param pubConstructionId firebase ID of the public construction to adjust the star count of
+   * @param pubConstructionId firebase ID of the public construction to adjust the star count of as stored in the starred array
    * @param byValue amount to change the star count by
    */
   async function updateStarCountInFirebase(
     pubConstructionId: string,
     byValue: number
   ) {
+    // parse out the path and ID from each other if needed
+    const parsed: StarredConstruction = parseStarredID(pubConstructionId);
     // get a reference to the public construction in firebase
-    const publicDocRef = doc(appDB, "constructions", pubConstructionId);
+    const publicDocRef = doc(appDB, "constructions", parsed.id);
     // get a snapshot of the public construction document in firebase
     const publicDS: DocumentSnapshot = await getDoc(publicDocRef);
     // does the public document actually exist?
@@ -1181,10 +1167,23 @@ export const useConstructionStore = defineStore("construction", () => {
    * @param pubConstructionId firebase ID of the public construction to unstar
    */
   function unstarConstruction(pubConstructionId: string) {
+    // parse the path and ID out of the pub construction string if necessary
+    const parsed: StarredConstruction = parseStarredID(pubConstructionId);
+
+    console.debug("pubConstructionId: " + pubConstructionId);
+    console.debug("parsed id: " + parsed.id);
+
     // find the index of the starred construction in the local store
+    // NOTE: this part of the function will never actually work
+    // since the construction IDs are not their public IDs but their actual
+    // IDs.
     const pos = starredConstructions.value.findIndex(
-      (z: SphericalConstruction) => z.id == pubConstructionId
+      (z: SphericalConstruction) => {
+        console.debug("checked against " + z.id);
+        return z.id == parsed.id;
+      }
     );
+    console.debug("[unstarConstruction] found pos " + pos);
     // did we find the construction in the local store?
     if (pos >= 0) {
       /*
@@ -1201,8 +1200,9 @@ export const useConstructionStore = defineStore("construction", () => {
     } // no, we didn't find the construction in the local store; skip removing it from there
     // find the index of the starred construction in firebase
     const pos2 = starredConstructionIDs.value.findIndex(
-      x => x === pubConstructionId
+      x => parseStarredID(x).id === pubConstructionId
     );
+    console.debug("[unstarConstruction] found pos2 " + pos2);
     // did we find the construction in firebase?
     if (pos2 >= 0) {
       /*
@@ -1216,6 +1216,19 @@ export const useConstructionStore = defineStore("construction", () => {
       updateStarredArrayInFirebase(starredConstructionIDs.value);
       updateStarCountInFirebase(pubConstructionId, -1);
     }
+  }
+
+  /**
+   * convert a starred ID to a parsed StarredConstruction type
+   * @param id starred ID to parse
+   * @returns starred ID to parse to a path and id as a StarredConstruction type
+   */
+  function parseStarredID(id: String): StarredConstruction {
+    const splitIdx = id.indexOf("/");
+    return {
+      id: splitIdx != -1 ? id.slice(0, splitIdx) : id,
+      path: splitIdx != -1 ? id.slice(splitIdx + 1) : ""
+    } as StarredConstruction;
   }
 
   /**
@@ -1323,6 +1336,7 @@ export const useConstructionStore = defineStore("construction", () => {
     saveConstruction,
     starConstruction,
     unstarConstruction,
+    parseStarredID,
     isConstructionPathValid,
     moveConstructions
   };
