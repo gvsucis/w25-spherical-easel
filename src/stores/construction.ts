@@ -1170,48 +1170,19 @@ export const useConstructionStore = defineStore("construction", () => {
     // parse the path and ID out of the pub construction string if necessary
     const parsed: StarredConstruction = parseStarredID(pubConstructionId);
 
-    console.debug("pubConstructionId: " + pubConstructionId);
-    console.debug("parsed id: " + parsed.id);
-
-    // find the index of the starred construction in the local store
-    // NOTE: this part of the function will never actually work
-    // since the construction IDs are not their public IDs but their actual
-    // IDs.
-    const pos = starredConstructions.value.findIndex(
-      (z: SphericalConstruction) => {
-        console.debug("checked against " + z.id);
-        return z.id == parsed.id;
-      }
-    );
-    console.debug("[unstarConstruction] found pos " + pos);
-    // did we find the construction in the local store?
-    if (pos >= 0) {
-      /*
-        yes, we found the construction in the local store of starred constructions;
-        move it from the local store of starred constructions to the local store of
-        public constructions, and decrement its star count
-      */
-      const target = starredConstructions.value[pos];
-      if (target.starCount > 0) {
-        starredConstructions.value[pos].starCount--;
-      }
-      const inStarred = starredConstructions.value.splice(pos, 1);
-      publicConstructions.value.push(...inStarred);
-    } // no, we didn't find the construction in the local store; skip removing it from there
     // find the index of the starred construction in firebase
-    const pos2 = starredConstructionIDs.value.findIndex(
+    const pos = starredConstructionIDs.value.findIndex(
       x => parseStarredID(x).id === pubConstructionId
     );
-    console.debug("[unstarConstruction] found pos2 " + pos2);
     // did we find the construction in firebase?
-    if (pos2 >= 0) {
+    if (pos >= 0) {
       /*
         yes, we found the construction in firebase;
         remove it from the user's starred constructions array, then update
         the firebase's copy of both the user's starred constructions array
         and the public construction's star count.
       */
-      starredConstructionIDs.value.splice(pos2, 1);
+      starredConstructionIDs.value.splice(pos, 1);
 
       updateStarredArrayInFirebase(starredConstructionIDs.value);
       updateStarCountInFirebase(pubConstructionId, -1);
@@ -1249,7 +1220,11 @@ export const useConstructionStore = defineStore("construction", () => {
     return (
       !path.startsWith("/") &&
       path.endsWith("/") &&
-      path.split("/").every(name => name.length > 0)
+      path
+        // take substring since last slash will always result in an empty string
+        .substring(0, path.length - 1)
+        .split("/")
+        .every(name => name.length > 0)
     );
   }
 
@@ -1265,6 +1240,8 @@ export const useConstructionStore = defineStore("construction", () => {
     ...constructionIDs: Array<string>
   ): Promise<boolean> {
     var success: boolean = true;
+    // track whether or not we changed starred so we only update the list once
+    var changedStarred: boolean = false;
 
     // ensure to has a trailing slash
     if (!to.endsWith("/")) {
@@ -1273,47 +1250,63 @@ export const useConstructionStore = defineStore("construction", () => {
 
     // validate the destination path
     if (isConstructionPathValid(to)) {
+      console.log("path valid");
       // iterate over every passed construction ID
       constructionIDs.forEach(id => {
         // determine if the construction is owned or starred
         var isOwned: boolean | undefined = undefined;
         var index = 0;
 
+        console.debug("checking the owned list");
         /* search owned constructions first */
         index = privateConstructions.value.findIndex(
           construction => construction.id === id
         );
-        if (index != -1) {
+        if (index >= 0) {
           isOwned = true;
+          console.debug("found in the owned list");
         }
 
         /* if we didn't find the construction in the owned list, check the starred list */
         if (!isOwned || isOwned === undefined) {
-          index = starredConstructions.value.findIndex(
-            construction => construction.id === id
+          console.log("checking the starred list");
+          index = starredConstructionIDs.value.findIndex(
+            starredId => starredId === id
           );
-          if (index != -1) {
+          if (index >= 0) {
+            console.log("found in the starred list");
             isOwned = false;
           }
         }
 
         /* make sure we found the construction */
         if (isOwned === undefined) {
+          console.log("could not find the construction - continuing");
           success = false;
           /* return in a foreach is effectively the same as continue */
           return;
         }
 
         if (isOwned) {
+          console.log("found construction in owned; moving");
           /* TODO test */
           /* change the path of the owned construction */
           privateConstructions.value.at(index)!.path = to;
         } else {
-          /* TODO need to update some logic with starred constructions before they can be moved */
+          const parsed: StarredConstruction = parseStarredID(
+            starredConstructionIDs.value.at(index)!
+          );
+          starredConstructionIDs.value[index] = parsed.id + "/" + to;
+          changedStarred = true;
         }
       });
     } else {
       success = false;
+    }
+
+    // if we changed the starred constructions, upload them
+    if (changedStarred) {
+      updateStarredArrayInFirebase(starredConstructionIDs.value);
     }
 
     return success;
