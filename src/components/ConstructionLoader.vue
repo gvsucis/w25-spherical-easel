@@ -48,6 +48,7 @@ import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
 import { SphericalConstruction } from "@/types";
+import { computed } from "vue";
 const openMultiple = ref(false); // Ensure this is declared
 
 const moveConstructionHandler = () => {
@@ -72,52 +73,19 @@ const {
 } = useSearch(searchKey.value);
 
 // Tree Items for File Structure
-const treeItems = ref([
-  {
-    id: "private",
-    title: "Private Constructions",
-    children: privateConstructions.value.map(construction => ({
-      id: construction.id,
-      title: construction.description
-    }))
-  },
-  {
-    id: "starred",
-    title: "Starred Constructions",
-    children: starredConstructions.value.map(construction => ({
-      id: construction.id,
-      title: construction.description
-    }))
-  },
-  {
-    id: "public",
-    title: "Public Constructions",
-    children: publicConstructions.value.map(construction => ({
-      id: construction.id,
-      title: construction.description
-    }))
-  }
-]);
-watch(privateConstructions, newVal => {
-  treeItems.value[0].children = newVal.map(construction => ({
-    id: construction.id,
-    title: construction.description
-  }));
+const treeItems = computed(() => {
+  return constructionStore.constructionTree.getRoot();
 });
 
-watch(starredConstructions, newVal => {
-  treeItems.value[1].children = newVal.map(construction => ({
-    id: construction.id,
-    title: construction.description
-  }));
-});
+// watcher to debug updates to treeItems
+watch(
+  () => treeItems.value,
+  newValue => {
+    console.log("Tree Items Updated:", newValue);
+  },
+  { deep: true }
+);
 
-watch(publicConstructions, newVal => {
-  treeItems.value[2].children = newVal.map(construction => ({
-    id: construction.id,
-    title: construction.description
-  }));
-});
 // Tree Handler Setup
 const { selectedItems, openPanels, handleNodeSelection } = useTreeHandler(
   treeItems.value
