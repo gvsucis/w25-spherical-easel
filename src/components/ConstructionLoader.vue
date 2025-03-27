@@ -26,15 +26,6 @@
       @move="moveConstruction"
     />
 
-    <!-- Folder Actions Component
-    <FolderActions
-      :newFolderName="newFolderName"
-      :parentFolder="parentFolder"
-      @update:newFolderName="newFolderName = $event"
-      @update:parentFolder="parentFolder = $event"
-      @move="moveConstructionHandler"
-    /> -->
-
     <!-- Panels for Constructions -->
     <PanelsContainer
       :filtered-private-constructions="filteredPrivateConstructions"
