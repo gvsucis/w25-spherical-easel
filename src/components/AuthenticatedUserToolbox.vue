@@ -84,44 +84,45 @@
     :label="
       t('construction.saveOverwrite', { docId: constructionDocId })
     "></v-switch>
-  
-  <!-- Folder Selection Section -->
-  <div class="my-2">
-    <v-divider class="mb-2"></v-divider>
-    <h3 class="text-subtitle-1 mb-2">Select or Enter Folder Path</h3>
-    
-    <!-- Folder path input -->
-    <v-text-field
-      v-model="folderPath"
-      label="Folder Path (e.g., Math/Geometry)"
-      density="compact"
-      hint="Enter a new or existing folder path"
-      persistent-hint
-      clearable
-      @keypress.stop
-    ></v-text-field>
-    
-    <!-- Existing Folders Treeview -->
-    <p class="text-caption mt-2 mb-1">Or select an existing folder:</p>
-    <v-treeview
-      v-model:active="selectedFolder"
-      :items="treeItems"
-      selectable
-      dense
-      hoverable
-      activatable
-      item-value="id"
-      item-title="title"
-      open-all 
-      class="mt-1 folder-tree"
-      color="#40A082"
-      @update:active="handleNodeSelection"
-    >
-      <template v-slot:prepend="{ item }">
-        <v-icon>{{ item.icon || 'mdi-folder' }}</v-icon>
-      </template>
-    </v-treeview>
-  </div>
+
+<!-- Folder Selection Section -->
+<div class="my-2" v-if="!isSavedAsPublicConstruction">
+  <v-divider class="mb-2"></v-divider>
+  <h3 class="text-subtitle-1 mb-2">Select or Enter Folder Path</h3>
+
+  <!-- Folder path input -->
+  <v-text-field
+    v-model="folderPath"
+    label="Folder Path (e.g., Math/Geometry)"
+    density="compact"
+    hint="Enter a new or existing folder path"
+    persistent-hint
+    clearable
+    @keypress.stop
+  ></v-text-field>
+
+  <!-- Existing Folders Treeview -->
+  <p class="text-caption mt-2 mb-1">Or select an existing folder:</p>
+  <v-treeview
+    v-model:active="selectedFolder"
+    :items="treeItems"
+    selectable
+    dense
+    hoverable
+    activatable
+    item-value="id"
+    item-title="title"
+    open-all
+    class="mt-1 folder-tree"
+    color="#40A082"
+    @update:active="handleNodeSelection"
+  >
+    <template v-slot:prepend="{ item }">
+      <v-icon>{{ item.icon || 'mdi-folder' }}</v-icon>
+    </template>
+  </v-treeview>
+</div>
+
 </Dialog>
   <Dialog
     ref="exportConstructionDialog"
@@ -428,7 +429,7 @@ const existingFolders = ref<string[]>([]);
 const handleNodeSelection = (selected: string[]) => {
   if (selected && selected.length > 0) {
     // Update this line to assign an array with one element
-    selectedFolder.value = [selected[0]]; 
+    selectedFolder.value = [selected[0]];
     console.log("Selected folder:", selectedFolder.value[0]);
   }
 };
@@ -475,10 +476,10 @@ const treeItems = computed(() => {
       folders.add(construction.path);
     }
   });
-  
+
   // Log for debugging
   console.log("Available folders:", Array.from(folders));
-  
+
   return [
     {
       id: 'private',
