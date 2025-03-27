@@ -1250,48 +1250,49 @@ export const useConstructionStore = defineStore("construction", () => {
 
     // validate the destination path
     if (isConstructionPathValid(to)) {
-      console.log("path valid");
       // iterate over every passed construction ID
       constructionIDs.forEach(id => {
         // determine if the construction is owned or starred
         var isOwned: boolean | undefined = undefined;
         var index = 0;
 
-        console.debug("checking the owned list");
         /* search owned constructions first */
         index = privateConstructions.value.findIndex(
           construction => construction.id === id
         );
         if (index >= 0) {
           isOwned = true;
-          console.debug("found in the owned list");
         }
 
         /* if we didn't find the construction in the owned list, check the starred list */
         if (!isOwned || isOwned === undefined) {
-          console.log("checking the starred list");
           index = starredConstructionIDs.value.findIndex(
             starredId => starredId === id
           );
           if (index >= 0) {
-            console.log("found in the starred list");
             isOwned = false;
           }
         }
 
         /* make sure we found the construction */
         if (isOwned === undefined) {
-          console.log("could not find the construction - continuing");
           success = false;
           /* return in a foreach is effectively the same as continue */
           return;
         }
 
         if (isOwned) {
-          console.log("found construction in owned; moving");
-          /* TODO test */
+          /* TODO ask sponsors about this - seems like the saveConstruction function is working weird? */
           /* change the path of the owned construction */
-          privateConstructions.value.at(index)!.path = to;
+          privateConstructions.value[index].path = to;
+          /* save the changes to firebase */
+          const construction = privateConstructions.value.at(index)!;
+          saveConstruction(
+            construction.id,
+            construction.description,
+            construction.publicDocId !== null &&
+              construction.publicDocId !== undefined
+          );
         } else {
           const parsed: StarredConstruction = parseStarredID(
             starredConstructionIDs.value.at(index)!
