@@ -179,10 +179,17 @@ class TreeviewNode {
   public leaf: boolean;
   public children?: Array<TreeviewNode>;
 
-  constructor(id: string, name: string, leaf?: boolean) {
+  constructor(id: string, title: string, leaf?: boolean) {
     this.id = id;
-    this.title = name;
+    this.title = title;
     this.leaf = leaf ?? false;
+  }
+
+  /**
+   * get a copy of this node; does not copy children.
+   */
+  public copy(): TreeviewNode {
+    return new TreeviewNode(this.id, this.title, this.leaf);
   }
 
   public getPathParentNode(path: string): TreeviewNode {
@@ -279,8 +286,8 @@ class TreeviewNode {
 }
 
 class ConstructionTree {
-  /** the root node of our tree */
-  private root: TreeviewNode;
+  /** the root of our tree */
+  private root: Array<TreeviewNode>;
 
   /** index of the public constructions in the root node's children */
   private readonly publicIdx = 0;
@@ -290,21 +297,23 @@ class ConstructionTree {
   private readonly starredIdx = 2;
 
   public constructor(root_title: string) {
-    this.root = new TreeviewNode("root", root_title, false);
-
     /* ensure root has space for 3 children allocated for the public/owned/starred constructions */
-    this.root.children = Array<TreeviewNode>(3);
-    this.root.children[this.publicIdx] = new TreeviewNode(
+    this.root = Array<TreeviewNode>(3);
+
+    /* we don't list public constructions in the view this tree is meant to represent,
+     * but the user should still be able to select the "folder" containing them so that
+     * they can view the public constructions */
+    this.root[this.publicIdx] = new TreeviewNode(
       "Public Constructions",
       "Public Constructions",
       false
     );
-    this.root.children[this.ownedIdx] = new TreeviewNode(
+    this.root[this.ownedIdx] = new TreeviewNode(
       "Owned Constructions",
       "Owned Constructions",
       false
     );
-    this.root.children[this.starredIdx] = new TreeviewNode(
+    this.root[this.starredIdx] = new TreeviewNode(
       "Starred Constructions",
       "Starred Constructions",
       false
@@ -315,76 +324,124 @@ class ConstructionTree {
    * clear any existing constructions and build the tree based on the
    * given lists of public, owned, and starred constructions.
    *
-   * @param publicConstructions
    * @param ownedConstructions
    * @param starredConstructions
    */
   public fromArrays(
-    publicConstructions: Ref<Array<SphericalConstruction>>,
     ownedConstructions: Ref<Array<SphericalConstruction>>,
     starredConstructions: Ref<Array<SphericalConstruction>>
   ) {
     this.clear();
-    this.addPublicConstructions(...publicConstructions.value);
     this.addOwnedConstructions(...ownedConstructions.value);
     this.addStarredConstructions(...starredConstructions.value);
-
-    // if a member has a zero-length array, delete it so that it doesn't appear to have elements
-    // in the UI view
-    [this.publicIdx, this.ownedIdx, this.starredIdx].forEach(idx => {
-      if (this.root.children![idx].children?.length == 0) {
-        this.root.children![idx].children = undefined;
-      }
-    });
-  }
-
-  /** append one or more constructions to the public construction subtree */
-  public addPublicConstructions(...constructions: SphericalConstruction[]) {
-    /* speed this up by finding the parent node once and then putting all constructions
-     * beneath it; this mostly just ensures that we have an existing children array as desired
-     * and avoids running the check multiple times */
-    const parentNode = this.root.children![this.publicIdx].getPathParentNode(
-      constructions[0].path ?? ""
-    );
-
-    constructions.forEach(x => {
-      parentNode.appendChildConstruction(x, parentNode);
-    });
   }
 
   /** append one or more construction to the owned constructions subtree */
   public addOwnedConstructions(...constructions: SphericalConstruction[]) {
     constructions.forEach(construction => {
-      this.root.children![this.ownedIdx].appendChildConstruction(construction);
+      this.root[this.ownedIdx].appendChildConstruction(construction);
     });
+  }
+
+  /**
+   * clear the owned constructions and replace them with a new list
+   */
+  public setOwnedConstructions(
+    constructions: Ref<Array<SphericalConstruction>>
+  ) {
+    this.root[this.ownedIdx].children?.clear();
+    this.addOwnedConstructions(...constructions.value);
   }
 
   /** append one or more constructions to the starred constructions subtree */
   public addStarredConstructions(...constructions: SphericalConstruction[]) {
     constructions.forEach(construction => {
-      this.root.children![this.starredIdx].appendChildConstruction(
-        construction
-      );
+      this.root[this.starredIdx].appendChildConstruction(construction);
     });
+  }
+
+  /**
+   * clear the starred constructions and replace them with a new list
+   */
+  public setStarredConstructions(
+    constructions: Ref<Array<SphericalConstruction>>
+  ) {
+    this.root[this.starredIdx].children?.clear();
+    this.addStarredConstructions(...constructions.value);
+  }
+
+  /**
+   * get a copy of the tree without any of the leaves, leaving only the folders
+   */
+  public getLeafless(): Array<TreeviewNode> {
+    var leafless: Array<TreeviewNode> = [];
+
+    this.root.forEach(rootNode => {
+      leafless.push(rootNode.copy());
+      leafless.at(-1)!.children = this._getLeafless(rootNode);
+    });
+
+    return leafless;
+  }
+
+  /**
+   * recursive function to get all the non-leaf nodes in the tree. GetLeafless() without
+   * the leading underscore is provided as a public interface since we can't directly recurse
+   * on the top level of the tree; instead we have to iterate over the top level and recurse on
+   * each root node.
+   *
+   * @param node current node
+   */
+  private _getLeafless(node: TreeviewNode): Array<TreeviewNode> | undefined {
+    /* base case: node with no children */
+    if (
+      node.children === null ||
+      node.children === undefined ||
+      node.children!.length == 0
+    ) {
+      return undefined;
+    }
+
+    var leafless: Array<TreeviewNode> = [];
+
+    node.children!.forEach(child => {
+      if (!child.leaf) {
+        /* copy the child */
+        var copy: TreeviewNode = child.copy();
+        /* add it to the array */
+        leafless.push(copy);
+        /* recurse on the child */
+        const children = this._getLeafless(child);
+        if (children != undefined && children.length > 0) {
+          copy.children = children;
+        } else {
+          /* previously non-leaf nodes must now become leaf nodes to avoid looking weird
+           * in the UI */
+          copy.leaf = true;
+        }
+      }
+    });
+
+    return leafless;
   }
 
   /**
    * @returns an array containing the root node of the tree structure
    */
-  public getRootAsArr(): TreeviewNode[] {
+  public getRoot(): Array<TreeviewNode> {
     /*
      * I don't like this function since it returns a mutable reference to the private root element
      * this class maintains, but it's not worth it to make a deep copy every time and it is necessary for
      * the root to be accessible outside of this class since the treeview component needs to use it.
      */
-    return [this.root];
+    return this.root;
   }
 
   /**
    * clear the construction tree, leaving only the 3 subtrees.
    */
   private clear() {
-    this.root.children!.forEach(x => {
+    this.root.forEach(x => {
       x.children?.clear();
     });
   }
@@ -437,13 +494,6 @@ export const useConstructionStore = defineStore("construction", () => {
           return !myOwnPublic && !inMyStarList;
         });
         publicConstructions.value = theirs;
-
-        // update the constructions tree
-        constructionTree.fromArrays(
-          publicConstructions,
-          privateConstructions,
-          starredConstructions
-        );
       } else {
         privateConstructions.value.splice(0);
         publicConstructions.value = allPublicConstructions.slice(0);
@@ -457,11 +507,7 @@ export const useConstructionStore = defineStore("construction", () => {
   watchDebounced(
     privateConstructions,
     async _ => {
-      constructionTree.fromArrays(
-        publicConstructions,
-        privateConstructions,
-        starredConstructions
-      );
+      constructionTree.setOwnedConstructions(privateConstructions);
     },
     { debounce: 500 /* milliseconds */ }
   );
@@ -471,7 +517,8 @@ export const useConstructionStore = defineStore("construction", () => {
     () => starredConstructionIDs.value,
     async favorites => {
       console.debug("Starred watcher", favorites);
-      parseStarredConstructions(favorites);
+      await parseStarredConstructions(favorites);
+      constructionTree.setStarredConstructions(starredConstructions);
     },
     { deep: true }
   );
@@ -810,17 +857,10 @@ export const useConstructionStore = defineStore("construction", () => {
    * @param fromArr array of firebase public construction IDs to parse
    */
   async function parseStarredConstructions(fromArr: string[]) {
-    if (fromArr.length > 0 && publicParsed) {
+    if (publicParsed) {
       console.debug("List of favorite items", fromArr);
       /* parse fromArr into a combination of ID and path */
-      const stars: Array<StarredConstruction> = [];
-      fromArr.forEach(x => {
-        const splitIdx = x.indexOf("/");
-        stars.push({
-          id: splitIdx != -1 ? x.slice(0, splitIdx) : x,
-          path: splitIdx != -1 ? x.slice(splitIdx + 1) : ""
-        } as StarredConstruction);
-      });
+      const stars: Array<StarredConstruction> = fromArr.map(parseStarredID);
 
       console.debug("parsed stars: " + JSON.stringify(stars));
 
@@ -876,11 +916,7 @@ export const useConstructionStore = defineStore("construction", () => {
     publicConstructions.value = allPublicConstructions.slice(0);
     /* only update tree view if UID exists since it isn't displayed otherwise */
     if (firebaseUid) {
-      constructionTree.fromArrays(
-        publicConstructions,
-        privateConstructions,
-        starredConstructions
-      );
+      constructionTree.fromArrays(privateConstructions, starredConstructions);
     }
   }
 
@@ -1054,15 +1090,17 @@ export const useConstructionStore = defineStore("construction", () => {
    * of 5. Note that star counts cannot be negative - if the delta would result in a negative
    * value, the value is clamped to 0.
    *
-   * @param pubConstructionId firebase ID of the public construction to adjust the star count of
+   * @param pubConstructionId firebase ID of the public construction to adjust the star count of as stored in the starred array
    * @param byValue amount to change the star count by
    */
   async function updateStarCountInFirebase(
     pubConstructionId: string,
     byValue: number
   ) {
+    // parse out the path and ID from each other if needed
+    const parsed: StarredConstruction = parseStarredID(pubConstructionId);
     // get a reference to the public construction in firebase
-    const publicDocRef = doc(appDB, "constructions", pubConstructionId);
+    const publicDocRef = doc(appDB, "constructions", parsed.id);
     // get a snapshot of the public construction document in firebase
     const publicDS: DocumentSnapshot = await getDoc(publicDocRef);
     // does the public document actually exist?
@@ -1131,41 +1169,150 @@ export const useConstructionStore = defineStore("construction", () => {
    * @param pubConstructionId firebase ID of the public construction to unstar
    */
   function unstarConstruction(pubConstructionId: string) {
-    // find the index of the starred construction in the local store
-    const pos = starredConstructions.value.findIndex(
-      (z: SphericalConstruction) => z.id == pubConstructionId
-    );
-    // did we find the construction in the local store?
-    if (pos >= 0) {
-      /*
-        yes, we found the construction in the local store of starred constructions;
-        move it from the local store of starred constructions to the local store of
-        public constructions, and decrement its star count
-      */
-      const target = starredConstructions.value[pos];
-      if (target.starCount > 0) {
-        starredConstructions.value[pos].starCount--;
-      }
-      const inStarred = starredConstructions.value.splice(pos, 1);
-      publicConstructions.value.push(...inStarred);
-    } // no, we didn't find the construction in the local store; skip removing it from there
+    // parse the path and ID out of the pub construction string if necessary
+    const parsed: StarredConstruction = parseStarredID(pubConstructionId);
+
     // find the index of the starred construction in firebase
-    const pos2 = starredConstructionIDs.value.findIndex(
-      x => x === pubConstructionId
+    const pos = starredConstructionIDs.value.findIndex(
+      x => parseStarredID(x).id === pubConstructionId
     );
     // did we find the construction in firebase?
-    if (pos2 >= 0) {
+    if (pos >= 0) {
       /*
         yes, we found the construction in firebase;
         remove it from the user's starred constructions array, then update
         the firebase's copy of both the user's starred constructions array
         and the public construction's star count.
       */
-      starredConstructionIDs.value.splice(pos2, 1);
+      starredConstructionIDs.value.splice(pos, 1);
 
       updateStarredArrayInFirebase(starredConstructionIDs.value);
       updateStarCountInFirebase(pubConstructionId, -1);
     }
+  }
+
+  /**
+   * convert a starred ID to a parsed StarredConstruction type
+   * @param id starred ID to parse
+   * @returns starred ID to parse to a path and id as a StarredConstruction type
+   */
+  function parseStarredID(id: String): StarredConstruction {
+    const splitIdx = id.indexOf("/");
+    return {
+      id: splitIdx != -1 ? id.slice(0, splitIdx) : id,
+      path: splitIdx != -1 ? id.slice(splitIdx + 1) : ""
+    } as StarredConstruction;
+  }
+
+  /**
+   * check if a construction path is valid
+   * @param path path to check the validity of
+   * @returns true if valid, false otherwise
+   */
+  function isConstructionPathValid(path: string): boolean {
+    /* special case: empty string */
+    if (path.length == 0) {
+      return true;
+    }
+
+    /* paths are expected to be in the format
+     *    "path/to/folder/"
+     * with no leading slash and no empty names (I.E., "path//to//thing" would have two empty names)
+     */
+    return (
+      !path.startsWith("/") &&
+      path.endsWith("/") &&
+      path
+        // take substring since last slash will always result in an empty string
+        .substring(0, path.length - 1)
+        .split("/")
+        .every(name => name.length > 0)
+    );
+  }
+
+  /**
+   * move one or more constructions to a new destination.
+   *
+   * @param to destination path as a string
+   * @param constructionIDs construction IDs to move
+   * @returns true if every construction was successfully moved, false otherwise
+   */
+  async function moveConstructions(
+    to: string,
+    ...constructionIDs: Array<string>
+  ): Promise<boolean> {
+    var success: boolean = true;
+    // track whether or not we changed starred so we only update the list once
+    var changedStarred: boolean = false;
+
+    // ensure to has a trailing slash
+    if (!to.endsWith("/")) {
+      to += "/";
+    }
+
+    // validate the destination path
+    if (isConstructionPathValid(to)) {
+      // iterate over every passed construction ID
+      constructionIDs.forEach(id => {
+        // determine if the construction is owned or starred
+        var isOwned: boolean | undefined = undefined;
+        var index = 0;
+
+        /* search owned constructions first */
+        index = privateConstructions.value.findIndex(
+          construction => construction.id === id
+        );
+        if (index >= 0) {
+          isOwned = true;
+        }
+
+        /* if we didn't find the construction in the owned list, check the starred list */
+        if (!isOwned || isOwned === undefined) {
+          index = starredConstructionIDs.value.findIndex(
+            starredId => starredId === id
+          );
+          if (index >= 0) {
+            isOwned = false;
+          }
+        }
+
+        /* make sure we found the construction */
+        if (isOwned === undefined) {
+          success = false;
+          /* return in a foreach is effectively the same as continue */
+          return;
+        }
+
+        if (isOwned) {
+          /* TODO ask sponsors about this - seems like the saveConstruction function is working weird? */
+          /* change the path of the owned construction */
+          privateConstructions.value[index].path = to;
+          /* save the changes to firebase */
+          const construction = privateConstructions.value.at(index)!;
+          saveConstruction(
+            construction.id,
+            construction.description,
+            construction.publicDocId !== null &&
+              construction.publicDocId !== undefined
+          );
+        } else {
+          const parsed: StarredConstruction = parseStarredID(
+            starredConstructionIDs.value.at(index)!
+          );
+          starredConstructionIDs.value[index] = parsed.id + "/" + to;
+          changedStarred = true;
+        }
+      });
+    } else {
+      success = false;
+    }
+
+    // if we changed the starred constructions, upload them
+    if (changedStarred) {
+      updateStarredArrayInFirebase(starredConstructionIDs.value);
+    }
+
+    return success;
   }
 
   return {
@@ -1184,6 +1331,9 @@ export const useConstructionStore = defineStore("construction", () => {
     makePublic,
     saveConstruction,
     starConstruction,
-    unstarConstruction
+    unstarConstruction,
+    parseStarredID,
+    isConstructionPathValid,
+    moveConstructions
   };
 });

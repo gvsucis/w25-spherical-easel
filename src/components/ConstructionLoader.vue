@@ -10,8 +10,7 @@
         class="mt-4"
         @click="showDialog = true"
         block
-        max-width="300px"
-      >
+        max-width="300px">
         Construction Organization
       </v-btn>
     </div>
@@ -23,8 +22,7 @@
       :tree-items="treeItems"
       :checked-constructions="checkedConstructions"
       @select="handleNodeSelection"
-      @move="moveConstruction"
-    />
+      @move="moveConstruction" />
 
     <!-- Panels for Constructions -->
     <PanelsContainer
@@ -33,8 +31,7 @@
       :filtered-public-constructions="filteredPublicConstructions"
       :open-panels="openPanels"
       :open-multiple="openMultiple"
-      :search-result="searchResult"
-    />
+      :search-result="searchResult" />
   </div>
 </template>
 
@@ -43,7 +40,7 @@ import { ref, onMounted, watch } from "vue";
 import SearchBar from "@/components/SearchBar.vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
-import FolderActions from "@/components/FolderActions.vue";  // Import FolderActions
+import FolderActions from "@/components/FolderActions.vue"; // Import FolderActions
 import { useSearch } from "@/composables/useSearch";
 import { useFolderActions } from "@/composables/useFolderActions";
 import { useTreeHandler } from "@/composables/useTreeHandler";
@@ -51,7 +48,7 @@ import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
 import { SphericalConstruction } from "@/types";
-const openMultiple = ref(false);  // Ensure this is declared
+const openMultiple = ref(false); // Ensure this is declared
 
 const moveConstructionHandler = () => {
   moveConstruction(checkedConstructions.value, parentFolder.value);
@@ -71,7 +68,7 @@ const {
   filteredPrivateConstructions,
   filteredPublicConstructions,
   filteredStarredConstructions,
-  resetFilters,
+  resetFilters
 } = useSearch(searchKey.value);
 
 // Tree Items for File Structure
@@ -82,7 +79,7 @@ const treeItems = ref([
     children: privateConstructions.value.map(construction => ({
       id: construction.id,
       title: construction.description
-    })),
+    }))
   },
   {
     id: "starred",
@@ -90,7 +87,7 @@ const treeItems = ref([
     children: starredConstructions.value.map(construction => ({
       id: construction.id,
       title: construction.description
-    })),
+    }))
   },
   {
     id: "public",
@@ -98,24 +95,24 @@ const treeItems = ref([
     children: publicConstructions.value.map(construction => ({
       id: construction.id,
       title: construction.description
-    })),
-  },
+    }))
+  }
 ]);
-watch(privateConstructions, (newVal) => {
+watch(privateConstructions, newVal => {
   treeItems.value[0].children = newVal.map(construction => ({
     id: construction.id,
     title: construction.description
   }));
 });
 
-watch(starredConstructions, (newVal) => {
+watch(starredConstructions, newVal => {
   treeItems.value[1].children = newVal.map(construction => ({
     id: construction.id,
     title: construction.description
   }));
 });
 
-watch(publicConstructions, (newVal) => {
+watch(publicConstructions, newVal => {
   treeItems.value[2].children = newVal.map(construction => ({
     id: construction.id,
     title: construction.description
@@ -128,8 +125,8 @@ const { selectedItems, openPanels, handleNodeSelection } = useTreeHandler(
 
 // Folder Actions Setup
 const { checkedConstructions, moveConstruction } = useFolderActions();
-const newFolderName = ref("");  // Define newFolderName in parent
-const parentFolder = ref("");   // Define parentFolder in parent
+const newFolderName = ref(""); // Define newFolderName in parent
+const parentFolder = ref(""); // Define parentFolder in parent
 
 // Dialog State
 const showDialog = ref(false);
