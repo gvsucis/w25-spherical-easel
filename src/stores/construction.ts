@@ -43,7 +43,7 @@ import { useAccountStore } from "@/stores/account";
 import { useSEStore } from "./se";
 import { watch } from "vue";
 import { mergeIntoImageUrl } from "@/utils/helpingfunctions";
-import { watchDebounced, watchPausable } from "@vueuse/core";
+import { watchDebounced } from "@vueuse/core";
 import EventBus from "@/eventHandlers/EventBus";
 
 let appStorage: FirebaseStorage;
@@ -221,16 +221,6 @@ export const useConstructionStore = defineStore("construction", () => {
         privateConstructions.value.splice(0);
         publicConstructions.value = allPublicConstructions.slice(0);
       }
-    },
-    { debounce: 500 /* milliseconds */ }
-  );
-
-  /* watch for updates in the private constructions list and ensure they are applied to
-   * the tree view */
-  watchDebounced(
-    privateConstructions,
-    async _ => {
-      constructionTree.setOwnedConstructions(privateConstructions);
     },
     { debounce: 500 /* milliseconds */ }
   );
@@ -570,6 +560,9 @@ export const useConstructionStore = defineStore("construction", () => {
         (s: SphericalConstruction) => s.parsedScript.length > 0
       )
     );
+
+    /* refresh the constructiontree */
+    constructionTree.setOwnedConstructions(ref(targetArr));
   }
 
   /**
@@ -637,6 +630,10 @@ export const useConstructionStore = defineStore("construction", () => {
     publicConstructions.value = allPublicConstructions.slice(0);
     /* only update tree view if UID exists since it isn't displayed otherwise */
     if (firebaseUid) {
+      await parseOwnedCollection(
+        firebaseUid.value!,
+        privateConstructions.value
+      );
       constructionTree.fromArrays(privateConstructions, starredConstructions);
     }
   }
