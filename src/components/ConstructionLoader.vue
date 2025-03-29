@@ -167,7 +167,7 @@ import { useI18n } from "vue-i18n";
 import { useConstructionStore } from "@/stores/construction";
 import { useIdle } from "@vueuse/core";
 import { watch, computed, ref, Ref } from "vue";
-import { SphericalConstruction } from "@/types";
+import { SphericalConstruction } from "@/types/ConstructionTypes";
 import { useAccountStore } from "@/stores/account";
 import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
