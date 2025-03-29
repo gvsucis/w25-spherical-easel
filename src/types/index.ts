@@ -6,7 +6,7 @@ import { SECircle } from "@/models/SECircle";
 import { SESegment } from "@/models/SESegment";
 import { SENodule } from "@/models/SENodule";
 import { SEIntersectionPoint } from "@/models/SEIntersectionPoint";
-import { Matrix4, Vector2, Vector3 } from "three";
+import { Vector2, Vector3 } from "three";
 import { SEEllipse } from "@/models/SEEllipse";
 import { SEParametric } from "@/models/SEParametric";
 import { SyntaxTree } from "@/expression/ExpressionParser";
@@ -20,7 +20,6 @@ import { SEAngleMarker } from "@/models/SEAngleMarker";
 import { SEExpression } from "@/models/SEExpression";
 import { SEAntipodalPoint } from "@/models/SEAntipodalPoint";
 import { LAYER } from "@/global-settings";
-import { contains } from "two.js/src/utils/shape";
 // import "@types/google.maps"
 
 export interface Selectable {

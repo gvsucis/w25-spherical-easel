@@ -4,7 +4,8 @@ import {
   ConstructionScript,
   PublicConstructionInFirestore,
   StarredConstruction,
-  ConstructionTree
+  ConstructionTree,
+  ConstructionPath
 } from "@/types/ConstructionTypes";
 import { Command } from "@/commands/Command";
 import { defineStore } from "pinia";
@@ -157,7 +158,7 @@ async function parseDocument(
     // use the parsed tools from firebase if valid, otherwise leave them undefined.
     tools: remoteDoc.tools ?? undefined,
     starCount: remoteDoc.starCount,
-    path: remoteDoc.path ?? undefined
+    path: remoteDoc.path
   } as SphericalConstruction);
 }
 
@@ -248,7 +249,8 @@ export const useConstructionStore = defineStore("construction", () => {
   async function saveConstruction(
     constructionDocId: null | string,
     constructionDescription: string,
-    saveAsPublic: boolean
+    saveAsPublic: boolean,
+    folder: string = "Default"
   ): Promise<string> {
     /* create and dump to string an SVG of the construction */
     let svgBlock = "";
@@ -334,6 +336,7 @@ export const useConstructionStore = defineStore("construction", () => {
       // the actual script will be determine below
       script: "",
       preview: "",
+      path: folder,
       // TODO: check this may have to be grabbed from the existing doc in #1a
       starCount: 0
     };
@@ -919,32 +922,6 @@ export const useConstructionStore = defineStore("construction", () => {
   }
 
   /**
-   * check if a construction path is valid
-   * @param path path to check the validity of
-   * @returns true if valid, false otherwise
-   */
-  function isConstructionPathValid(path: string): boolean {
-    /* special case: empty string */
-    if (path.length == 0) {
-      return true;
-    }
-
-    /* paths are expected to be in the format
-     *    "path/to/folder/"
-     * with no leading slash and no empty names (I.E., "path//to//thing" would have two empty names)
-     */
-    return (
-      !path.startsWith("/") &&
-      path.endsWith("/") &&
-      path
-        // take substring since last slash will always result in an empty string
-        .substring(0, path.length - 1)
-        .split("/")
-        .every(name => name.length > 0)
-    );
-  }
-
-  /**
    * move one or more constructions to a new destination.
    *
    * @param to destination path as a string
@@ -952,20 +929,15 @@ export const useConstructionStore = defineStore("construction", () => {
    * @returns true if every construction was successfully moved, false otherwise
    */
   async function moveConstructions(
-    to: string,
+    to: ConstructionPath,
     ...constructionIDs: Array<string>
   ): Promise<boolean> {
     var success: boolean = true;
     // track whether or not we changed starred so we only update the list once
     var changedStarred: boolean = false;
 
-    // ensure to has a trailing slash
-    if (!to.endsWith("/")) {
-      to += "/";
-    }
-
     // validate the destination path
-    if (isConstructionPathValid(to)) {
+    if (to.isValid()) {
       // iterate over every passed construction ID
       constructionIDs.forEach(async id => {
         // determine if the construction is owned or starred
@@ -998,24 +970,22 @@ export const useConstructionStore = defineStore("construction", () => {
         }
 
         if (isOwned) {
-          /* TODO ask sponsors about this - seems like the saveConstruction function is working weird? */
           /* change the path of the owned construction */
-          privateConstructions.value[index].path = to;
+          privateConstructions.value[index].path = to.toString();
           /* save the changes to firebase */
-          const construction = privateConstructions.value.at(index)!;
           const ownedDocRef = doc(
             appDB,
             "users",
             firebaseUid.value!,
             "constructions",
-            construction.id
+            privateConstructions.value.at(index)!.id
           );
-          await updateDoc(ownedDocRef, { path: to });
+          await updateDoc(ownedDocRef, { path: to.toString() });
         } else {
           const parsed: StarredConstruction = parseStarredID(
             starredConstructionIDs.value.at(index)!
           );
-          starredConstructionIDs.value[index] = parsed.id + "/" + to;
+          starredConstructionIDs.value[index] = parsed.id + "/" + to.toString();
           changedStarred = true;
         }
       });
@@ -1049,7 +1019,6 @@ export const useConstructionStore = defineStore("construction", () => {
     starConstruction,
     unstarConstruction,
     parseStarredID,
-    isConstructionPathValid,
     moveConstructions
   };
 });
