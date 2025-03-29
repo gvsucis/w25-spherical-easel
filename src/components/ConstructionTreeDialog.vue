@@ -19,7 +19,14 @@
       </div>
 
       <!-- Direct padding style -->
-      <v-card-text style="padding: 24px !important;">
+      <v-card-text style="
+        padding: 24px !important;
+        max-height: 800px;
+        overflow-y: auto; /* Vertical scrollbar */
+        max-width: 100%; 
+        overflow-x: auto; /* Horizontal scrollbar */
+        white-space: nowrap; 
+      ">
         <v-treeview
           v-model:selected="checkedConstructions"
           :items="treeItems"
