@@ -358,7 +358,6 @@ export const useConstructionStore = defineStore("construction", () => {
       saveTask = addDoc(collection(appDB, collectionPath), constructionDetails);
     }
 
-    // try {
     return await saveTask
       .then((constructionDoc: DocumentReference) => {
         acctStore.constructionDocId = constructionDoc.id;
@@ -417,18 +416,17 @@ export const useConstructionStore = defineStore("construction", () => {
             ...localCopy,
             publicDocId: publicConstructionDoc.id
           });
+          constructionTree.setOwnedConstructions(privateConstructions);
         } else {
           await updateDoc(constructionDoc, {
             script: scriptData,
             preview: svgData
           });
           privateConstructions.value.push(localCopy);
+          constructionTree.setOwnedConstructions(privateConstructions);
         }
         return docId;
       });
-    // } catch (err) {
-    //   return err as Error
-    // }
   }
 
   /**
@@ -552,9 +550,7 @@ export const useConstructionStore = defineStore("construction", () => {
     );
     /* clear the existing targetArr list */
     targetArr.splice(0);
-    /*
-      push the newly parsed and downloaded constructions into the array
-    */
+    /* push the newly parsed and downloaded constructions into the array */
     targetArr.push(
       ...constructionArray.filter(
         (s: SphericalConstruction) => s.parsedScript.length > 0
@@ -971,7 +967,7 @@ export const useConstructionStore = defineStore("construction", () => {
     // validate the destination path
     if (isConstructionPathValid(to)) {
       // iterate over every passed construction ID
-      constructionIDs.forEach(id => {
+      constructionIDs.forEach(async id => {
         // determine if the construction is owned or starred
         var isOwned: boolean | undefined = undefined;
         var index = 0;
@@ -1007,12 +1003,14 @@ export const useConstructionStore = defineStore("construction", () => {
           privateConstructions.value[index].path = to;
           /* save the changes to firebase */
           const construction = privateConstructions.value.at(index)!;
-          saveConstruction(
-            construction.id,
-            construction.description,
-            construction.publicDocId !== null &&
-              construction.publicDocId !== undefined
+          const ownedDocRef = doc(
+            appDB,
+            "users",
+            firebaseUid.value!,
+            "constructions",
+            construction.id
           );
+          await updateDoc(ownedDocRef, { path: to });
         } else {
           const parsed: StarredConstruction = parseStarredID(
             starredConstructionIDs.value.at(index)!
