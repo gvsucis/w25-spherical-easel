@@ -34,7 +34,7 @@
     <HintButton
       color="green-lighten-2"
       v-if="firebaseUid && hasObjects"
-      @click="() => saveConstructionDialog?.show()"
+      @click="showSaveConstructionDialog()"
       tooltip="Save construction">
       <template #icon>mdi-content-save</template>
     </HintButton>
@@ -53,77 +53,72 @@
     </HintButton>
   </div>
   <Dialog
-  ref="saveConstructionDialog"
-  :title="
-    isSavedAsPublicConstruction
-      ? t('savePublicConstructionDialogTitle')
-      : t('savePrivateConstructionDialogTitle')
-  "
-  :yes-text="t('saveAction')"
-  :no-text="t('cancelAction')"
-  :yes-action="doSave"
-  max-width="40%">
-  <v-text-field
-    type="text"
-    density="compact"
-    clearable
-    counter
-    persistent-hint
-    :label="t('construction.saveDescription')"
-    required
-    v-model="constructionDescription"
-    @keypress.stop></v-text-field>
-  <v-switch
-    v-model="isSavedAsPublicConstruction"
-    :disabled="!firebaseUid"
-    :label="t('construction.makePublic')"></v-switch>
-  <v-switch
-    v-if="isMyOwnConstruction"
-    v-model="shouldSaveOverwrite"
-    :disabled="!firebaseUid"
-    :label="
-      t('construction.saveOverwrite', { docId: constructionDocId })
-    "></v-switch>
+    ref="saveConstructionDialog"
+    :title="
+      isSavedAsPublicConstruction
+        ? t('savePublicConstructionDialogTitle')
+        : t('savePrivateConstructionDialogTitle')
+    "
+    :yes-text="t('saveAction')"
+    :no-text="t('cancelAction')"
+    :yes-action="doSave"
+    max-width="40%">
+    <v-text-field
+      type="text"
+      density="compact"
+      clearable
+      counter
+      persistent-hint
+      :label="t('construction.saveDescription')"
+      required
+      v-model="constructionDescription"
+      @keypress.stop></v-text-field>
+    <v-switch
+      v-model="isSavedAsPublicConstruction"
+      :disabled="!firebaseUid"
+      :label="t('construction.makePublic')"></v-switch>
+    <v-switch
+      v-if="isMyOwnConstruction"
+      v-model="shouldSaveOverwrite"
+      :disabled="!firebaseUid"
+      :label="
+        t('construction.saveOverwrite', { docId: constructionDocId })
+      "></v-switch>
 
-<!-- Folder Selection Section -->
-<div class="my-2" v-if="!isSavedAsPublicConstruction">
-  <v-divider class="mb-2"></v-divider>
-  <h3 class="text-subtitle-1 mb-2">Select or Enter Folder Path</h3>
+    <!-- Folder Selection Section -->
+    <div class="my-2" v-if="!isSavedAsPublicConstruction">
+      <v-divider class="mb-2"></v-divider>
+      <h3 class="text-subtitle-1 mb-2">Select or Enter Folder Path</h3>
 
-  <!-- Folder path input -->
-  <v-text-field
-    v-model="folderPath"
-    label="Folder Path (e.g., Math/Geometry)"
-    density="compact"
-    hint="Enter a new or existing folder path"
-    persistent-hint
-    clearable
-    @keypress.stop
-  ></v-text-field>
+      <!-- Folder path input -->
+      <v-text-field
+        v-model="folderPath"
+        label="Folder Path (e.g., Math/Geometry)"
+        density="compact"
+        hint="Enter a new or existing folder path"
+        persistent-hint
+        clearable
+        @keypress.stop></v-text-field>
 
-  <!-- Existing Folders Treeview -->
-  <p class="text-caption mt-2 mb-1">Or select an existing folder:</p>
-  <v-treeview
-    v-model:active="selectedFolder"
-    :items="treeItems"
-    selectable
-    dense
-    hoverable
-    activatable
-    item-value="id"
-    item-title="title"
-    open-all
-    class="mt-1 folder-tree"
-    color="#40A082"
-    @update:active="handleNodeSelection"
-  >
-    <template v-slot:prepend="{ item }">
-      <v-icon>{{ item.icon || 'mdi-folder' }}</v-icon>
-    </template>
-  </v-treeview>
-</div>
-
-</Dialog>
+      <!-- Existing Folders Treeview -->
+      <!-- this tree view collapses items when one is selected - might be better if it didn't -->
+      <p class="text-caption mt-2 mb-1">Or select an existing folder:</p>
+      <v-treeview
+        :items="treeItems"
+        select-strategy="single-independent"
+        selectable
+        dense
+        item-value="id"
+        open-all
+        class="mt-1 folder-tree"
+        @update:selected="handleNodeSelection">
+        <!-- TODO add icon to TreeviewNode type -->
+        <template v-slot:prepend="{ item }">
+          <v-icon>{{ /*item.icon ||*/ "mdi-folder" }}</v-icon>
+        </template>
+      </v-treeview>
+    </div>
+  </Dialog>
   <Dialog
     ref="exportConstructionDialog"
     :title="t('exportConstructionDialogTitle')"
@@ -304,7 +299,11 @@ import { onKeyDown } from "@vueuse/core";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { DialogAction } from "./Dialog.vue";
-import { SphericalConstruction } from "@/types/ConstructionTypes";
+import {
+  ConstructionPath,
+  SphericalConstruction,
+  TreeviewNode
+} from "@/types/ConstructionTypes";
 import EventBus from "@/eventHandlers/EventBus";
 import { useConstructionStore } from "@/stores/construction";
 import FileSaver from "file-saver";
@@ -315,8 +314,8 @@ import { Vector3 } from "three";
 import SETTINGS from "@/global-settings";
 import { SEAntipodalPoint } from "@/models/SEAntipodalPoint";
 import { SEIntersectionPoint } from "@/models/SEIntersectionPoint";
-import { VTreeview } from 'vuetify/labs/VTreeview';
-
+import { VTreeview } from "vuetify/labs/VTreeview";
+import { shallowRef } from "vue";
 
 enum SecretKeyState {
   NONE,
@@ -422,26 +421,35 @@ onKeyDown(
 );
 
 const folderPath = ref("");
-const selectedFolder = ref<string[]>([]);
-const existingFolders = ref<string[]>([]);
 
-// Handle tree selection
-const handleNodeSelection = (selected: string[]) => {
+/**
+ * take the "any" input from the v-treeview component's update:selected property
+ * and convert it into a filepath to use with the picker.
+ *
+ * @param input input from the v-treeview component
+ */
+const handleNodeSelection = (input: any) => {
+  const selected: Array<string> = input as Array<string>;
   if (selected && selected.length > 0) {
-    // Update this line to assign an array with one element
-    selectedFolder.value = [selected[0]];
-    console.log("Selected folder:", selectedFolder.value[0]);
+    const selectedParsed: ConstructionPath = new ConstructionPath(selected[0]);
+    folderPath.value = selectedParsed.toString();
+    console.log(
+      "parsed path: " +
+        selectedParsed.toString() +
+        "\n" +
+        "got root: " +
+        selectedParsed.getRoot()
+    );
   }
 };
 
-// Modified doSave function to include the folder
 async function doSave(): Promise<void> {
   constructionStore
     .saveConstruction(
       constructionDocId.value,
       constructionDescription.value,
       isSavedAsPublicConstruction.value,
-      folderPath.value // Add this parameter to pass the folder name
+      new ConstructionPath(folderPath.value).toString() // Add this parameter to pass the folder name
     )
     .then((docId: string) => {
       // Force a refresh of the treeview data
@@ -468,40 +476,13 @@ async function doSave(): Promise<void> {
       saveConstructionDialog.value?.hide();
     });
 }
-const treeItems = computed(() => {
-  // Get unique folders
-  const folders = new Set<string>();
-  privateConstructions.value.forEach(construction => {
-    if (construction.path) {
-      folders.add(construction.path);
-    }
-  });
 
-  // Log for debugging
-  console.log("Available folders:", Array.from(folders));
+const treeItems: Ref<Array<TreeviewNode> | undefined> = ref(undefined);
 
-  return [
-    {
-      id: 'private',
-      title: 'Private Constructions',
-      icon: 'mdi-folder', // Add icon for root node
-      children: Array.from(folders).map(folder => ({
-        id: folder,
-        title: folder,
-        icon: 'mdi-folder' // Make sure icon is defined for each child
-      }))
-    }
-  ];
-});
-
-// watcher to debug updates to treeItems
-watch(
-  () => treeItems.value,
-  newValue => {
-    console.log("Tree items updated in new file: ", newValue);
-  },
-  { deep: true }
-);
+const showSaveConstructionDialog = () => {
+  treeItems.value = constructionStore.constructionTree.getOwnedFolders();
+  saveConstructionDialog.value?.show();
+};
 
 const isMyOwnConstruction = computed((): boolean => {
   // Confirm if the current construction is in my private list
