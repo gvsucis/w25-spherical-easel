@@ -47,7 +47,6 @@ import { useTreeHandler } from "@/composables/useTreeHandler";
 import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
-import { SphericalConstruction } from "@/types";
 import { computed } from "vue";
 const openMultiple = ref(false); // Ensure this is declared
 
