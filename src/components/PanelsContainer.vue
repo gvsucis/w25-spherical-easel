@@ -1,8 +1,7 @@
 <template>
   <v-expansion-panels
     eager
-    :modelValue="openPanels"
-    @update:modelValue="handleUpdateOpenPanels"
+    :modelValue="model"
     :multiple="openMultiple"
     :style="{
       gap: '10px',
@@ -68,10 +67,9 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits } from "vue";
+import { defineProps } from "vue";
 import { SphericalConstruction } from "@/types/ConstructionTypes";
 import { useI18n } from "vue-i18n";
-import { ref } from "vue";
 import ConstructionList from "./ConstructionList.vue";
 
 // Get the translation function
@@ -79,6 +77,10 @@ const { t } = useI18n();
 
 // Define props for the component
 const props = defineProps({
+  model: {
+    type: String,
+    required: true
+  },
   filteredPrivateConstructions: {
     type: Array as () => SphericalConstruction[] | undefined,
     required: true
@@ -104,14 +106,6 @@ const props = defineProps({
     required: true
   }
 });
-
-// Emit update event for openPanels
-const emit = defineEmits();
-const openPanels = ref(["private", "starred"]); // Initially open 'private' and 'starred' panels
-
-const handleUpdateOpenPanels = (newValue: any) => {
-  emit("update:openPanels", newValue);
-};
 </script>
 <i18n locale="en" lang="json">
 {

@@ -26,6 +26,7 @@
 
     <!-- Panels for Constructions -->
     <PanelsContainer
+      model="openPanels"
       :filtered-private-constructions="filteredPrivateConstructions"
       :filtered-starred-constructions="filteredStarredConstructions"
       :filtered-public-constructions="filteredPublicConstructions"
