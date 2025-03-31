@@ -22,13 +22,17 @@ export class TreeviewNode {
     return new TreeviewNode(this.id, this.title, this.leaf);
   }
 
+  /**
+   * @param path path to get the parent node for; ensures the parent node has a children array defined.
+   * @returns the parent node of the requested path
+   */
   public getPathParentNode(path: string): TreeviewNode {
     return this._getPathParentNode(path);
   }
 
   /**
    * this function is private as opposed to the public interface lacking the second argument to ensure
-   * it is always called correctly by external consumers of its API
+   * it is always called correctly by external consumers of its API.
    *
    * @param path path to ensure exists and then return reference to; follows format
    *             'folder0/folder1/folderN/'

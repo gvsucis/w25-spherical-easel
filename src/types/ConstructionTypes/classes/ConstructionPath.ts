@@ -45,16 +45,15 @@ class ConstructionPath {
     // if the path has a slash at the front, remove it
     if (path.startsWith("/")) path = path.substring(1, path.length);
 
-    // if the path has a root, remove it
+    // if the path has a root, remove it; also, splice out the "NONE" option so it doesn't always get picked
     for (const [key, value] of Object.entries(ConstructionPathRoots).toSpliced(
       0,
       1
     )) {
-      console.log('key: "' + key + '", value: "' + value + '"');
       // remove the root and mark it under the root property
       if (path.startsWith(value)) {
         path = path.substring(value.length);
-        this.root = key as ConstructionPathRoots;
+        this.root = value;
         // check the path for a starting slash again
         if (path.startsWith("/")) path = path.substring(1, path.length);
         break;

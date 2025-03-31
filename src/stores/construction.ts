@@ -178,9 +178,7 @@ export const useConstructionStore = defineStore("construction", () => {
   const privateConstructions: Ref<Array<SphericalConstruction>> = ref([]);
   // Public constructions is never null
   const starredConstructions: Ref<Array<SphericalConstruction>> = ref([]);
-  const constructionTree: ConstructionTree = new ConstructionTree(
-    "constructions"
-  );
+  const constructionTree: ConstructionTree = new ConstructionTree();
   const currentConstructionPreview: Ref<string | null> = ref(null);
   const acctStore = useAccountStore();
   const seStore = useSEStore();
