@@ -40,7 +40,7 @@ import { ref, onMounted, watch } from "vue";
 import SearchBar from "@/components/SearchBar.vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
-import FolderActions from "@/components/FolderActions.vue"; // Import FolderActions
+import FolderActions from "@/components/FolderActions.vue";
 import { useSearch } from "@/composables/useSearch";
 import { useFolderActions } from "@/composables/useFolderActions";
 import { useTreeHandler } from "@/composables/useTreeHandler";

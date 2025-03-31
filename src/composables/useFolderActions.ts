@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { SphericalConstruction } from "src/types";
+import { SphericalConstruction } from "@/types/ConstructionTypes";
 
 export function useFolderActions() {
   const checkedConstructions = ref([]);
@@ -7,7 +7,8 @@ export function useFolderActions() {
 
   function moveConstruction(
     constructions: SphericalConstruction[],
-    folderName: string) {
+    folderName: string
+  ) {
     if (!folderName || constructions.length === 0) {
       alert("Please select a construction and enter a folder name.");
       return;
