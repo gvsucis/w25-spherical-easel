@@ -4,7 +4,7 @@ import { SphericalConstruction } from "@/types/ConstructionTypes";
 export function useFolderActions() {
   const checkedConstructions = ref([]);
   const newFolderName = ref("");
-
+  //TODO make this work with construction loader
   function moveConstruction(
     constructions: SphericalConstruction[],
     folderName: string

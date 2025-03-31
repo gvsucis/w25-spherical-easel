@@ -2,49 +2,145 @@
   <v-dialog
     :modelValue="modelValue"
     @update:modelValue="handleUpdateModelValue"
-    max-width="500px"
+    max-width="800px"
   >
     <v-card color="#E8F5F1" theme="light" style="overflow: hidden;">
       <v-card-title class="text-mint-dark">
         Construction Organization
       </v-card-title>
 
-      <!-- Increased padding with direct style -->
-      <div style="padding: 16px;">
-        <FolderActions
-          :newFolderName="newFolderName"
-          :parentFolder="parentFolder"
-          @move="moveConstruction"
-        />
+      <!-- Buttons at the top with space in between -->
+      <div class="d-flex pa-4">
+        <!-- Individual buttons with margin -->
+        <v-btn 
+          color="#40A082"
+          variant="outlined"
+          :class="{ 'active-btn': !isMoveModeActive }"
+          @click="isMoveModeActive = false"
+          class="mr-2"
+        >
+          LOAD
+        </v-btn>
+        
+        <v-btn 
+          color="#40A082"
+          variant="outlined"
+          :class="{ 'active-btn': isMoveModeActive }"
+          @click="isMoveModeActive = true"
+        >
+          MOVE
+        </v-btn>
       </div>
 
-      <!-- Direct padding style -->
-      <v-card-text style="
-        padding: 24px !important;
-        max-height: 800px;
-        overflow-y: auto; /* Vertical scrollbar */
-        max-width: 100%; 
-        overflow-x: auto; /* Horizontal scrollbar */
-        white-space: nowrap; 
-      ">
-        <v-treeview
-          v-model:selected="checkedConstructions"
-          :items="treeItems"
-          hoverable
-          activatable
-          item-title="title"
-          class="mt-4"
-          color="#40A082"
-          @update:active="handleNodeSelection"
-          return-object
-          :select-strategy="'leaf'"
-        />
-      </v-card-text>
+      <!-- Load View -->
+      <div v-if="!isMoveModeActive">
+        <v-card-text style="
+          padding: 24px !important;
+          max-height: 800px;
+          overflow-y: auto;
+          max-width: 100%; 
+        ">
+          <div class="tree-container">
+            <v-treeview
+              v-model:selected="checkedConstructions"
+              :items="treeItems"
+              hoverable
+              activatable
+              selectable
+              item-title="title"
+              color="#40A082"
+              return-object
+              :select-strategy="'leaf'"
+            ></v-treeview>
+          </div>
+        </v-card-text>
+      </div>
 
-      <!-- Direct padding for card actions -->
+      <!-- Move View -->
+      <div v-else>
+        <v-card-text style="padding: 16px !important;">
+          <v-row>
+            <!-- Left Side Title -->
+            <v-col cols="5">
+              <div class="text-subtitle-1 mb-2">Select Constructions</div>
+            </v-col>
+            
+            <!-- Middle space -->
+            <v-col cols="2"></v-col>
+            
+            <!-- Right Side Title -->
+            <v-col cols="5">
+              <div class="text-subtitle-1 mb-2">Destination Folder</div>
+            </v-col>
+          </v-row>
+          
+          <v-row>
+            <!-- Left Side: Source -->
+            <v-col cols="5">
+              <div class="tree-container">
+                <v-treeview
+                  v-model:selected="checkedConstructions"
+                  :items="treeItems"
+                  hoverable
+                  selectable
+                  item-title="title"
+                  color="#40A082"
+                  return-object
+                ></v-treeview>
+              </div>
+            </v-col>
+
+            <!-- Middle: Move Button -->
+            <v-col cols="2" class="d-flex align-center justify-center">
+              <v-btn 
+                color="#40A082" 
+                @click="confirmMove"
+                class="square-button"
+                min-width="40px"
+                width="40px"
+                height="40px"
+              >
+                <v-icon>mdi-arrow-right</v-icon>
+              </v-btn>
+            </v-col>
+
+            <!-- Right Side: Destination -->
+            <v-col cols="5">
+              <div class="tree-container">
+                <v-treeview
+                  v-model:active="targetFolder"
+                  :items="treeItems"
+                  hoverable
+                  activatable
+                  item-title="title"
+                  color="#40A082"
+                  return-object
+                ></v-treeview>
+              </div>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </div>
+
+      <!-- Buttons at bottom -->
       <v-card-actions style="padding: 16px 24px !important;">
         <v-spacer></v-spacer>
-        <v-btn color="#40A082" @click="emit('update:modelValue', false)">Close</v-btn>
+        <!-- Action button that changes based on mode -->
+        <v-btn 
+          v-if="!isMoveModeActive" 
+          color="#40A082" 
+          class="mr-2"
+          @click="handleLoadClick">
+          LOAD SELECTED
+        </v-btn>
+        <v-btn 
+          v-else 
+          color="#40A082" 
+          class="mr-2"
+          @click="confirmMove">
+          CONFIRM MOVE
+        </v-btn>
+        <v-btn color="#40A082" variant="outlined" @click="emit('update:modelValue', false)">CLOSE</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -55,44 +151,65 @@ import { defineProps, defineEmits, ref, onMounted } from 'vue';
 import FolderActions from '@/components/FolderActions.vue';
 import { VTreeview } from 'vuetify/labs/VTreeview';
 
-
 const props = defineProps({
   modelValue: Boolean, // Prop for dialog visibility
   treeItems: Array, // Prop for tree data
 });
 
 const emit = defineEmits<{
-  (e: 'move', checked: any, newFolderName: string): void;
-  (e: 'close'): void;
-  (e: 'update:modelValue', newValue: boolean): void; // Explicitly define this event
+  (e: 'move', checked: any, destination: string | object): void;
+  (e: 'load', selected: any): void;
+  (e: 'update:modelValue', newValue: boolean): void;
 }>();
-const checkedConstructions = ref([]); // Holds selected nodes
-const newFolderName = ref(''); // For new folder name
-const parentFolder = ref(''); // For parent folder selection
 
-// Handle selection of tree nodes
+// State variables
+const checkedConstructions = ref([]);
+const targetFolder = ref([]);
+const newFolderName = ref('');
+const parentFolder = ref('');
+const isMoveModeActive = ref(false);
+
+// Handle Load button click
+function handleLoadClick() {
+  if (checkedConstructions.value && checkedConstructions.value.length > 0) {
+    emit('load', checkedConstructions.value);
+    emit('update:modelValue', false); // Optional: close dialog after loading
+  }
+}
+
+// Handle node selection
 function handleNodeSelection(value: string[]) {
   console.log('Selected node(s):', value);
 }
 
 // Handle move construction
 function moveConstruction() {
-  emit('move', checkedConstructions.value, newFolderName.value);
-  newFolderName.value = '';
+  if (newFolderName.value) {
+    emit('move', checkedConstructions.value, newFolderName.value);
+    newFolderName.value = '';
+  }
+}
+
+// Confirm move action
+function confirmMove() {
+  if (checkedConstructions.value.length > 0 && targetFolder.value.length > 0) {
+    const destination = targetFolder.value[0];
+    emit('move', checkedConstructions.value, destination);
+    emit('update:modelValue', false); // Optional: close dialog after moving
+  }
 }
 
 // Emit update to parent when dialog visibility changes
 function handleUpdateModelValue(newValue: boolean) {
   emit('update:modelValue', newValue);
 }
+
 onMounted(() => {
   console.log('Tree items:', props.treeItems);
 });
-
 </script>
 
 <style scoped>
-/* More specific and forceful styles */
 :deep(.v-card-text) {
   padding: 24px !important;
 }
@@ -103,5 +220,44 @@ onMounted(() => {
 
 :deep(.v-text-field) {
   margin-bottom: 16px !important;
+}
+
+.selected-btn {
+  font-weight: bold;
+  border-width: 2px;
+}
+
+.tree-container {
+  min-height: 350px;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
+  background-color: white;
+  white-space: nowrap;
+  width: 100%;
+}
+
+:deep(.v-treeview-node__root) {
+  min-width: max-content;
+}
+
+:deep(.v-treeview-node__label) {
+  white-space: nowrap;
+  display: inline-block;
+  overflow: visible;
+}
+
+:deep(.v-treeview-node__content) {
+  width: auto;
+  min-width: max-content;
+  overflow: visible;
+}
+
+:deep(.v-treeview) {
+  overflow: visible;
+  min-width: max-content;
 }
 </style>

@@ -22,7 +22,7 @@
       :tree-items="treeItems"
       :checked-constructions="checkedConstructions"
       @select="handleNodeSelection"
-      @move="moveConstruction" />
+      @move="" />
 
     <!-- Panels for Constructions -->
     <PanelsContainer
@@ -33,7 +33,7 @@
       :open-panels="openPanels"
       :open-multiple="openMultiple"
       :search-result="searchResult" />
-  </div>
+    </div>
 </template>
 
 <script lang="ts" setup>
@@ -41,13 +41,14 @@ import { ref, onMounted, watch } from "vue";
 import SearchBar from "@/components/SearchBar.vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
-import FolderActions from "@/components/FolderActions.vue";
+import FolderActions from "@/components/FolderActions.vue"; // Import FolderActions
 import { useSearch } from "@/composables/useSearch";
 import { useFolderActions } from "@/composables/useFolderActions";
 import { useTreeHandler } from "@/composables/useTreeHandler";
 import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
+import { SphericalConstruction } from "@/types/ConstructionTypes";
 import { computed } from "vue";
 const openMultiple = ref(false); // Ensure this is declared
 
