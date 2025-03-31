@@ -1,5 +1,9 @@
 import { TreeviewNode } from "./TreeviewNode";
-import { SphericalConstruction } from "..";
+import {
+  ConstructionPath,
+  ConstructionPathRoots,
+  SphericalConstruction
+} from "..";
 import { Ref } from "vue";
 
 export class ConstructionTree {
@@ -16,7 +20,7 @@ export class ConstructionTree {
   /** index of the starred constructions in the root node's children */
   private readonly starredIdx = 2;
 
-  public constructor(root_title: string) {
+  public constructor() {
     /* ensure root has space for 3 children allocated for the public/owned/starred constructions */
     this.root = Array<TreeviewNode>(3);
 
@@ -173,6 +177,29 @@ export class ConstructionTree {
      * the root to be accessible outside of this class since the treeview component needs to use it.
      */
     return this.root;
+  }
+
+  public addFolder(path: ConstructionPath) {
+    /* only add valid paths */
+    if (path.isValid()) {
+      let parent: TreeviewNode;
+      switch (path.getRoot()) {
+        case ConstructionPathRoots.OWNED:
+          parent = this.root[this.ownedIdx].getPathParentNode(path.toString());
+          break;
+        case ConstructionPathRoots.PUBLIC:
+          parent = this.root[this.publicIdx].getPathParentNode(path.toString());
+          break;
+        case ConstructionPathRoots.STARRED:
+          parent = this.root[this.starredIdx].getPathParentNode(
+            path.toString()
+          );
+          break;
+        default:
+          /* nothing to be done */
+          return;
+      }
+    }
   }
 
   /**
