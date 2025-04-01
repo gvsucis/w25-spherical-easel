@@ -6,27 +6,28 @@
   >
     <v-card color="#E8F5F1" theme="light" style="overflow: hidden;">
       <v-card-title class="text-mint-dark">
-        Construction Organization
+        {{ !isMoveModeActive ? 'Load Construction Folders' : 'Move Constructions' }}
       </v-card-title>
 
       <!-- Buttons at the top with space in between -->
       <div class="d-flex pa-4">
         <!-- Individual buttons with margin -->
         <v-btn 
-          color="#40A082"
-          variant="outlined"
-          :class="{ 'active-btn': !isMoveModeActive }"
+          :color="!isMoveModeActive ? '#40A082' : '#40A082'"
+          :variant="!isMoveModeActive ? 'flat' : 'outlined'"
           @click="isMoveModeActive = false"
-          class="mr-2"
+          class="mr-2 mode-btn"
+          :class="{ 'active-mode-btn': !isMoveModeActive }"
         >
           LOAD
         </v-btn>
         
         <v-btn 
-          color="#40A082"
-          variant="outlined"
-          :class="{ 'active-btn': isMoveModeActive }"
+          :color="isMoveModeActive ? '#40A082' : '#40A082'"
+          :variant="isMoveModeActive ? 'flat' : 'outlined'"
           @click="isMoveModeActive = true"
+          class="mode-btn"
+          :class="{ 'active-mode-btn': isMoveModeActive }"
         >
           MOVE
         </v-btn>
@@ -62,7 +63,7 @@
           <v-row>
             <!-- Left Side Title -->
             <v-col cols="5">
-              <div class="text-subtitle-1 mb-2">Select Constructions</div>
+              <div class="text-subtitle-1 mb-2 text-center">SELECT CONSTRUCTIONS</div>
             </v-col>
             
             <!-- Middle space -->
@@ -70,7 +71,7 @@
             
             <!-- Right Side Title -->
             <v-col cols="5">
-              <div class="text-subtitle-1 mb-2">Destination Folder</div>
+              <div class="text-subtitle-1 mb-2 text-center">DESTINATION FOLDER</div>
             </v-col>
           </v-row>
           
@@ -225,6 +226,18 @@ onMounted(() => {
 .selected-btn {
   font-weight: bold;
   border-width: 2px;
+}
+
+.mode-btn {
+  min-width: 100px;
+  font-weight: 500;
+}
+
+.active-mode-btn {
+  font-weight: bold;
+  background-color: #40A082 !important;
+  color: white !important;
+  border: none;
 }
 
 .tree-container {
