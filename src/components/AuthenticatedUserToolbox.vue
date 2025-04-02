@@ -301,6 +301,7 @@ import { useI18n } from "vue-i18n";
 import { DialogAction } from "./Dialog.vue";
 import {
   ConstructionPath,
+  ConstructionPathError,
   SphericalConstruction,
   TreeviewNode
 } from "@/types/ConstructionTypes";
@@ -444,37 +445,53 @@ const handleNodeSelection = (input: any) => {
 };
 
 async function doSave(): Promise<void> {
-  constructionStore
-    .saveConstruction(
-      constructionDocId.value,
-      constructionDescription.value,
-      isSavedAsPublicConstruction.value,
-      new ConstructionPath(folderPath.value).toString() // Add this parameter to pass the folder name
-    )
-    .then((docId: string) => {
-      // Force a refresh of the treeview data
-      setTimeout(() => {
-        // This creates a shallow copy of the array, triggering reactivity
-        privateConstructions.value = [...privateConstructions.value];
-      }, 500);
-      EventBus.fire("show-alert", {
-        key: "constructions.firestoreConstructionSaved",
-        keyOptions: { docId },
-        type: "info"
+  const path: ConstructionPath = new ConstructionPath(folderPath.value);
+  if (path.isValid()) {
+    constructionStore
+      .saveConstruction(
+        constructionDocId.value,
+        constructionDescription.value,
+        isSavedAsPublicConstruction.value,
+        path.toString() // Add this parameter to pass the folder name
+      )
+      .then((docId: string) => {
+        // Force a refresh of the treeview data
+        setTimeout(() => {
+          // This creates a shallow copy of the array, triggering reactivity
+          privateConstructions.value = [...privateConstructions.value];
+        }, 500);
+        EventBus.fire("show-alert", {
+          key: "constructions.firestoreConstructionSaved",
+          keyOptions: { docId },
+          type: "info"
+        });
+        seStore.clearUnsavedFlag();
+      })
+      .catch((err: Error) => {
+        console.error("Can't save document", err.message);
+        EventBus.fire("show-alert", {
+          key: t("construction.firestoreSaveError", { error: err }),
+          keyOptions: { error: err },
+          type: "error"
+        });
+      })
+      .finally(() => {
+        saveConstructionDialog.value?.hide();
       });
-      seStore.clearUnsavedFlag();
-    })
-    .catch((err: Error) => {
-      console.error("Can't save document", err.message);
-      EventBus.fire("show-alert", {
-        key: t("construction.firestoreSaveError", { error: err }),
-        keyOptions: { error: err },
-        type: "error"
-      });
-    })
-    .finally(() => {
-      saveConstructionDialog.value?.hide();
+  } else {
+    let errKey: string = "";
+    switch (path.getError()) {
+      case ConstructionPathError.TOOLONG:
+        errKey = t("construction.pathError.tooLong");
+        break;
+      case ConstructionPathError.EMPTYPATHS:
+        errKey = t("construction.pathError.emptyFolders");
+    }
+    EventBus.fire("show-alert", {
+      key: errKey,
+      type: "error"
     });
+  }
 }
 
 const treeItems: Ref<Array<TreeviewNode> | undefined> = ref(undefined);
@@ -847,7 +864,11 @@ function doExport() {
     "saveDescription": "Description",
     "saveOverwrite": "Overwrite the existing construction {docId}",
     "makePublic": "Make construction publicly available",
-    "firestoreSaveError": "Construction was not saved: {error}"
+    "firestoreSaveError": "Construction was not saved: {error}",
+    "pathError": {
+      "tooLong": "path exceeds the max character limit ({limit})",
+      "emptyFolders": "path contains empty folder names (usually caused by multiple slashes in a name)"
+    }
   },
   "sliderFileDimensions": "Exported file size {widthHeight} in pixels",
   "exportFormat": "Image Format",

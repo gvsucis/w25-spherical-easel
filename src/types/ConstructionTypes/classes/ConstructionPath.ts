@@ -86,7 +86,7 @@ class ConstructionPath {
         // remove the last slash from the check since it will always have an empty split after it
         .substring(0, this.path.length - 1)
         .split("/")
-        .every(name => name.length > 0)
+        .every(name => name.trim().length > 0)
     ) {
       this.cachedError = ConstructionPathError.EMPTYPATHS;
       return this.cachedError;
