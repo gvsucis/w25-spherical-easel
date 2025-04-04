@@ -16,7 +16,7 @@
     <ConstructionTreeDialog
       v-if="firebaseUid && firebaseUid.length > 0"
       v-model:visible="showDialog"
-      v-model:selected-folder="folderToLoad"
+      v-model:loadFolder="folderToLoad"
       :tree-items="treeItems"
       :checked-constructions="checkedConstructions"
       @move="" />
@@ -30,7 +30,6 @@
 import { ref, watch, computed, Ref } from "vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
-import FolderActions from "@/components/FolderActions.vue"; // Import FolderActions
 import { useFolderActions } from "@/composables/useFolderActions";
 import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";

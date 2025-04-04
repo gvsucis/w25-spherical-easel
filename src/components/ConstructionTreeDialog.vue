@@ -40,7 +40,7 @@
           ">
           <div class="tree-container">
             <v-treeview
-              v-model:activated="selectedFolder"
+              v-model:activated="loadFolderInternal"
               :items="treeItems"
               hoverable
               activatable
@@ -128,7 +128,7 @@
           v-if="!isMoveModeActive"
           color="#40A082"
           class="mr-2"
-          @click="visible = false">
+          @click="loadSelected">
           LOAD SELECTED
         </v-btn>
         <v-btn v-else color="#40A082" class="mr-2" @click="confirmMove">
@@ -144,7 +144,6 @@
 
 <script lang="ts" setup>
 import { defineProps, defineEmits, ref, onMounted, watch } from "vue";
-import FolderActions from "@/components/FolderActions.vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
 
 const props = defineProps({
@@ -152,7 +151,7 @@ const props = defineProps({
 });
 
 const visible = defineModel("visible");
-const selectedFolder = defineModel("selectedFolder");
+const loadFolder = defineModel("loadFolder");
 
 const emit = defineEmits<{
   (e: "move", checked: any, destination: string | object): void;
@@ -164,11 +163,6 @@ const targetFolder = ref([]);
 const newFolderName = ref("");
 const parentFolder = ref("");
 const isMoveModeActive = ref(false);
-
-// Handle node selection
-function handleNodeSelection(value: string[]) {
-  console.log("Selected node(s):", value);
-}
 
 // Handle move construction
 function moveConstruction() {
@@ -186,6 +180,18 @@ function confirmMove() {
     visible.value = false;
   }
 }
+
+const loadFolderInternal = ref([]);
+
+const loadSelected = () => {
+  // sync the two values
+  if (loadFolderInternal.value.length > 0) {
+    loadFolder.value = loadFolderInternal.value[0];
+  } else {
+    loadFolder.value = "";
+  }
+  visible.value = false;
+};
 
 onMounted(() => {
   console.log("Tree items:", props.treeItems);

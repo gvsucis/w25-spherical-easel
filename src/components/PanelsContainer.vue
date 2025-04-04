@@ -2,6 +2,18 @@
   component that encapsulates the search and display functionality of the panel view for the constructions page.
 -->
 <template>
+  <!-- change visibility -->
+  <div v-if="selectedVisible" class="mb-4">
+    <v-btn
+      color="#40A082"
+      class="mt-4"
+      @click="filteredSelectedConstructions.clear()"
+      block
+      max-width="300px">
+      return to default view
+    </v-btn>
+  </div>
+
   <!-- search bar -->
   <v-text-field
     data-testid="searchInput"
@@ -29,7 +41,7 @@
     <v-expansion-panel
       data-testid="privatePanel"
       value="private"
-      v-if="firebaseUid && firebaseUid.length > 0">
+      v-if="!selectedVisible && firebaseUid && firebaseUid.length > 0">
       <v-expansion-panel-title>
         {{ t(`privateConstructions`) }} ({{
           filteredPrivateConstructions.length
@@ -45,6 +57,7 @@
       data-testid="starredPanel"
       value="starred"
       v-if="
+        !selectedVisible &&
         filteredStarredConstructions.length > 0 &&
         firebaseUid &&
         firebaseUid.length > 0
@@ -60,7 +73,10 @@
           :items="filteredStarredConstructions" />
       </v-expansion-panel-text>
     </v-expansion-panel>
-    <v-expansion-panel value="public" data-testid="publicPanel">
+    <v-expansion-panel
+      value="public"
+      data-testid="publicPanel"
+      v-if="!selectedVisible">
       <v-expansion-panel-title>
         {{ t(`publicConstructions`) }} ({{
           filteredPublicConstructions.length
@@ -75,9 +91,9 @@
     <v-expansion-panel
       data-testid="selectedPanel"
       value="selected"
-      v-if="selectedFolder && filteredSelectedConstructions.length > 0">
+      v-if="selectedVisible">
       <v-expansion-panel-title>
-        {{ selectedFolder[0] }} ({{ filteredSelectedConstructions.length }})
+        {{ selectedFolder }} ({{ filteredSelectedConstructions.length }})
       </v-expansion-panel-title>
       <v-expansion-panel-text data-testid="selectedList">
         <ConstructionList
@@ -89,7 +105,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, Ref, ref, onMounted, watch, toRefs } from "vue";
+import { defineProps, Ref, ref, onMounted, watch, toRefs, computed } from "vue";
 import { useIdle } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
@@ -149,8 +165,8 @@ onMounted(() => {
 watch(
   () => selectedFolder.value,
   value => {
-    console.log("selectedFolder: " + JSON.stringify(value[0]));
-    const path: ConstructionPath = new ConstructionPath(value[0]);
+    console.log("selectedFolder: " + JSON.stringify(value));
+    const path: ConstructionPath = new ConstructionPath(value);
     /* path validity is checked in getFolderContents */
     var contents: Array<TreeviewNode> | undefined =
       constructionStore.constructionTree.getFolderContents(path);
@@ -185,6 +201,14 @@ const openPanels: Ref<Array<string> | string> = ref("");
 const openMultiple = ref(false);
 
 let lastSearchKey: string | null = null;
+
+const selectedVisible = computed(() => {
+  return (
+    selectedFolder.value &&
+    selectedFolder.value.length > 0 &&
+    filteredSelectedConstructions.value.length > 0
+  );
+});
 
 watch(idle, (isIdle: boolean) => {
   if (!isIdle) {
