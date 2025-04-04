@@ -109,13 +109,6 @@
           @click="handleLoadClick">
           LOAD SELECTED
         </v-btn>
-        <v-btn
-          v-else
-          color="#40A082"
-          class="mr-2"
-          @click="confirmMove">
-          CONFIRM MOVE
-        </v-btn>
         <v-btn color="#40A082" variant="outlined" @click="emit('update:modelValue', false)">CLOSE</v-btn>
       </v-card-actions>
     </v-card>
