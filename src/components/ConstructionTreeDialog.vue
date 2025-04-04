@@ -45,11 +45,11 @@
           <v-card-text style="padding: 16px !important;">
             <v-row>
               <v-col cols="5">
-                <div class="text-subtitle-1 mb-2 text-center">SELECT CONSTRUCTIONS</div>
+                <div class="text-subtitle-1 mb-2 text-center font-weight-bold">SELECT CONSTRUCTIONS</div>
               </v-col>
               <v-col cols="2"></v-col>
               <v-col cols="5">
-                <div class="text-subtitle-1 mb-2 text-center">DESTINATION FOLDER</div>
+                <div class="text-subtitle-1 mb-2 text-center font-weight-bold">DESTINATION FOLDER</div>
               </v-col>
             </v-row>
 
