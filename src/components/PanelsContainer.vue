@@ -1,4 +1,8 @@
+<!--
+  component that encapsulates the search and display functionality of the panel view for the constructions page.
+-->
 <template>
+  <!-- search bar -->
   <v-text-field
     data-testid="searchInput"
     style="max-height: 3em"
@@ -188,6 +192,7 @@ watch(idle, (isIdle: boolean) => {
       });
     }
   }
+  // reset the idle timer
   reset();
 });
 

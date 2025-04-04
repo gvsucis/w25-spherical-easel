@@ -15,10 +15,10 @@
     <!-- Dialog with Treeview -->
     <ConstructionTreeDialog
       v-if="firebaseUid && firebaseUid.length > 0"
-      v-model="showDialog"
+      v-model:visible="showDialog"
+      v-model:selected-folder="folderToLoad"
       :tree-items="treeItems"
       :checked-constructions="checkedConstructions"
-      @select="handleNodeSelection"
       @move="" />
 
     <!-- Panels for Constructions -->
@@ -27,17 +27,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, watch, computed, Ref } from "vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
 import FolderActions from "@/components/FolderActions.vue"; // Import FolderActions
 import { useFolderActions } from "@/composables/useFolderActions";
-import { useTreeHandler } from "@/composables/useTreeHandler";
 import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
-import { SphericalConstruction } from "@/types/ConstructionTypes";
-import { computed } from "vue";
+import { TreeviewNode } from "@/types/ConstructionTypes";
 
 const moveConstructionHandler = () => {
   moveConstruction(checkedConstructions.value, parentFolder.value);
@@ -62,11 +60,6 @@ watch(
   { deep: true }
 );
 
-// Tree Handler Setup
-const { selectedItems, openPanels, handleNodeSelection } = useTreeHandler(
-  treeItems.value
-);
-
 // Folder Actions Setup
 const { checkedConstructions, moveConstruction } = useFolderActions();
 const newFolderName = ref(""); // Define newFolderName in parent
@@ -74,4 +67,13 @@ const parentFolder = ref(""); // Define parentFolder in parent
 
 // Dialog State
 const showDialog = ref(false);
+const folderToLoad: Ref<undefined | TreeviewNode> = ref(undefined);
+
+watch(
+  () => folderToLoad.value,
+  newValue => {
+    console.log("[folderToload] " + JSON.stringify(newValue));
+  },
+  { deep: true }
+);
 </script>
