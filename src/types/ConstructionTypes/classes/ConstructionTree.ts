@@ -203,6 +203,86 @@ export class ConstructionTree {
   }
 
   /**
+   *
+   * @param path path to get the contents of
+   * @returns the contents of that path if it is valid and can be found, otherwise undefined.
+   *          empty strings do not return the root node, they return undefined.
+   */
+  public getFolderContents(
+    path: ConstructionPath
+  ): Array<TreeviewNode> | undefined {
+    /* only search for valid paths */
+    if (path.isValid()) {
+      console.debug(
+        '[getFolderContents] got valid path "' + path.toString() + '"'
+      );
+      /* determine the parent node */
+      let parent: TreeviewNode;
+      switch (path.getRoot()) {
+        case ConstructionPathRoots.OWNED:
+          parent = this.root[this.ownedIdx];
+          console.debug("[getFolderContents] got initial parent OWNED");
+          break;
+        case ConstructionPathRoots.PUBLIC:
+          parent = this.root[this.publicIdx];
+          console.debug("[getFolderContents] got initial parent PUBLIc");
+          break;
+        case ConstructionPathRoots.STARRED:
+          parent = this.root[this.starredIdx];
+          console.debug("[getFolderContents] got initial parent STARRED");
+          break;
+        default:
+          /* nothing to be done - we can't determine the parent node */
+          console.debug("[getFolderContents] got no initial parent");
+          return undefined;
+      }
+
+      /* split the path string into chunks */
+      const path_chunks: Array<string> = path.toString().split("/");
+      console.debug("split: " + JSON.stringify(path_chunks));
+      /* remove the last chunk since it should be empty */
+      path_chunks.splice(path_chunks.length - 1);
+      /* iterate over the chunks */
+      while (path_chunks.length > 0) {
+        /* only run if the parent has children */
+        if (parent.children) {
+          var found: boolean = false;
+          let child: TreeviewNode;
+          for (child of parent.children) {
+            /* only check non-leaves */
+            if (!child.leaf) {
+              const childSplit: Array<string> = child.id.split("/");
+              console.log("child split: " + JSON.stringify(childSplit));
+              /* if we found a new child, break */
+              if (childSplit.at(-2) == path_chunks.at(0)) {
+                found = true;
+                parent = child;
+                path_chunks.splice(0, 1);
+                break;
+              }
+            }
+          }
+          /* if we found a child, continue; otherwise, return undefined */
+          if (!found) {
+            return undefined;
+          }
+        } else {
+          /* empty children array but we have more path to go - this path doesn't exist */
+          return undefined;
+        }
+      }
+
+      console.debug("[getFolderContents] final node: " + parent.id);
+      /* return the final node's children */
+      return parent.children;
+    }
+
+    console.debug('invalid path "' + path.toString() + '"');
+
+    return undefined;
+  }
+
+  /**
    * clear the construction tree, leaving only the 3 subtrees.
    */
   private clear() {

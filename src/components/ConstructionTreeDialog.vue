@@ -1,7 +1,6 @@
 <template>
   <v-dialog
-    :modelValue="modelValue"
-    @update:modelValue="handleUpdateModelValue"
+    v-model="visible"
     max-width="800px"
     >
     <v-card color="#E8F5F1" theme="light" style="overflow: hidden;">
@@ -26,16 +25,15 @@
           ">
             <div class="tree-container">
               <v-treeview
-                v-model:selected="checkedConstructions"
+              v-model:activated="loadFolderInternal"
                 :items="treeItems"
                 hoverable
                 activatable
-                selectable
                 item-title="title"
+                item-value="id"
                 color="#40A082"
                 return-object
-                :select-strategy="'leaf'"
-              ></v-treeview>
+                active-strategy="single-independent" />
             </div>
           </v-card-text>
         </v-window-item>
@@ -100,63 +98,51 @@
       </v-window>
 
       <!-- Buttons at bottom -->
-      <v-card-actions style="padding: 16px 24px !important;">
+      <v-card-actions style="padding: 16px 24px !important">
         <v-spacer></v-spacer>
         <v-btn
           v-if="selectedTab === 0"
           color="#40A082"
           class="mr-2"
-          @click="handleLoadClick">
+          @click="loadSelected">
           LOAD SELECTED
         </v-btn>
-        <v-btn color="#40A082" variant="outlined" @click="emit('update:modelValue', false)">CLOSE</v-btn>
+        <v-btn color="#40A082" variant="outlined" @click="visible = false">
+          CLOSE
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, ref, onMounted } from 'vue';
-import FolderActions from '@/components/FolderActions.vue';
-import { VTreeview } from 'vuetify/labs/VTreeview';
+import { defineProps, defineEmits, ref, onMounted, watch } from "vue";
+import { VTreeview } from "vuetify/labs/VTreeview";
 
 const props = defineProps({
-  modelValue: Boolean, // Prop for dialog visibility
-  treeItems: Array, // Prop for tree data
+  treeItems: Array // Prop for tree data
 });
 
+const visible = defineModel("visible");
+const loadFolder = defineModel("loadFolder");
+
 const emit = defineEmits<{
-  (e: 'move', checked: any, destination: string | object): void;
-  (e: 'load', selected: any): void;
-  (e: 'update:modelValue', newValue: boolean): void;
+  (e: "move", checked: any, destination: string | object): void;
 }>();
 
 // State variables
 const checkedConstructions = ref([]);
 const targetFolder = ref([]);
-const newFolderName = ref('');
-const parentFolder = ref('');
+const newFolderName = ref("");
+const parentFolder = ref("");
 const isMoveModeActive = ref(false);
 const selectedTab = ref(0); // Controls v-tabs
-
-// Handle Load button click
-function handleLoadClick() {
-  if (checkedConstructions.value && checkedConstructions.value.length > 0) {
-    emit('load', checkedConstructions.value);
-    emit('update:modelValue', false); // Optional: close dialog after loading
-  }
-}
-
-// Handle node selection
-function handleNodeSelection(value: string[]) {
-  console.log('Selected node(s):', value);
-}
 
 // Handle move construction
 function moveConstruction() {
   if (newFolderName.value) {
-    emit('move', checkedConstructions.value, newFolderName.value);
-    newFolderName.value = '';
+    emit("move", checkedConstructions.value, newFolderName.value);
+    newFolderName.value = "";
   }
 }
 
@@ -164,18 +150,25 @@ function moveConstruction() {
 function confirmMove() {
   if (checkedConstructions.value.length > 0 && targetFolder.value.length > 0) {
     const destination = targetFolder.value[0];
-    emit('move', checkedConstructions.value, destination);
-    emit('update:modelValue', false); // Optional: close dialog after moving
+    emit("move", checkedConstructions.value, destination);
+    visible.value = false;
   }
 }
 
-// Emit update to parent when dialog visibility changes
-function handleUpdateModelValue(newValue: boolean) {
-  emit('update:modelValue', newValue);
-}
+const loadFolderInternal = ref([]);
+
+const loadSelected = () => {
+  // sync the two values
+  if (loadFolderInternal.value.length > 0) {
+    loadFolder.value = loadFolderInternal.value[0];
+  } else {
+    loadFolder.value = "";
+  }
+  visible.value = false;
+};
 
 onMounted(() => {
-  console.log('Tree items:', props.treeItems);
+  console.log("Tree items:", props.treeItems);
 });
 </script>
 
@@ -204,7 +197,7 @@ onMounted(() => {
 
 .active-mode-btn {
   font-weight: bold;
-  background-color: #40A082 !important;
+  background-color: #40a082 !important;
   color: white !important;
   border: none;
 }
