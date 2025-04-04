@@ -1,6 +1,6 @@
 import { ref, watch } from "vue";
 import { useConstructionStore } from "@/stores/construction";
-import { SphericalConstruction } from "src/types";
+import { SphericalConstruction } from "@/types/ConstructionTypes";
 
 export function useSearch(searchKey: string) {
   const searchKeyRef = ref(searchKey); // wrap the string in a ref
