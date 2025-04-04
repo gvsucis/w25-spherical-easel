@@ -72,6 +72,19 @@
           :allow-sharing="false" />
       </v-expansion-panel-text>
     </v-expansion-panel>
+    <v-expansion-panel
+      data-testid="selectedPanel"
+      value="selected"
+      v-if="selectedFolder && filteredSelectedConstructions.length > 0">
+      <v-expansion-panel-title>
+        {{ selectedFolder[0] }} ({{ filteredSelectedConstructions.length }})
+      </v-expansion-panel-title>
+      <v-expansion-panel-text data-testid="selectedList">
+        <ConstructionList
+          :allow-sharing="false"
+          :items="filteredSelectedConstructions" />
+      </v-expansion-panel-text>
+    </v-expansion-panel>
   </v-expansion-panels>
 </template>
 
@@ -80,7 +93,12 @@ import { defineProps, Ref, ref, onMounted, watch, toRefs } from "vue";
 import { useIdle } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
-import { SphericalConstruction } from "@/types/ConstructionTypes";
+import {
+  ConstructionPath,
+  ConstructionPathRoots,
+  SphericalConstruction,
+  TreeviewNode
+} from "@/types/ConstructionTypes";
 import ConstructionList from "./ConstructionList.vue";
 import { useConstructionStore } from "@/stores/construction";
 import { useAccountStore } from "@/stores/account";
@@ -101,12 +119,25 @@ const { firebaseUid } = storeToRefs(acctStore);
 const { idle, reset } = useIdle(500); // wait for 0.5 second idle
 
 // Define props for the component
-// const props = defineProps({});
+const props = defineProps({
+  selectedFolder: {
+    type: String,
+    required: true
+  }
+});
+
+const { selectedFolder } = toRefs(props);
+
+/** selected constructions array - to be built based on user selection */
+let selectedConstructions: Array<SphericalConstruction> = [];
 
 /* filtered arrays for search functionality */
 const filteredPrivateConstructions: Ref<Array<SphericalConstruction>> = ref([]);
 const filteredPublicConstructions: Ref<Array<SphericalConstruction>> = ref([]);
 const filteredStarredConstructions: Ref<Array<SphericalConstruction>> = ref([]);
+const filteredSelectedConstructions: Ref<Array<SphericalConstruction>> = ref(
+  []
+);
 
 /* populate the filtered arrays */
 onMounted(() => {
@@ -115,7 +146,39 @@ onMounted(() => {
   filteredStarredConstructions.value.push(...starredConstructions.value);
 });
 
-/* variables for the vue components */
+watch(
+  () => selectedFolder.value,
+  value => {
+    console.log("selectedFolder: " + JSON.stringify(value[0]));
+    const path: ConstructionPath = new ConstructionPath(value[0]);
+    /* path validity is checked in getFolderContents */
+    var contents: Array<TreeviewNode> | undefined =
+      constructionStore.constructionTree.getFolderContents(path);
+    /* clear selected constructions */
+    selectedConstructions.splice(0);
+    /* if the contents result is not undefined, use it to build the new contents array */
+    if (contents) {
+      console.debug("contents is valid");
+      /* remove any non-leaves */
+      contents = contents.filter(item => item.leaf);
+      console.debug("contents post-filter: " + JSON.stringify(contents));
+      /* build the array */
+      if (path.getRoot() == ConstructionPathRoots.OWNED) {
+        selectedConstructions = privateConstructions.value.filter(item =>
+          contents!.some(content => content.id === item.id)
+        );
+      } else if (path.getRoot() == ConstructionPathRoots.STARRED) {
+        selectedConstructions = starredConstructions.value.filter(item =>
+          contents!.some(content => content.id === item.id)
+        );
+      }
+    }
+    filteredSelectedConstructions.value.splice(0);
+    filteredSelectedConstructions.value.push(...selectedConstructions);
+  }
+);
+
+/* search variables */
 const searchResult = ref("");
 const searchKey = ref("");
 const openPanels: Ref<Array<string> | string> = ref("");
@@ -218,6 +281,7 @@ watch(
   "privateConstructions": "Private Constructions",
   "publicConstructions": "Public Constructions",
   "starredConstructions": "Starred Constructions",
+  "searchLabel": "Search Construction",
   "foundMultiple": "Found {privateCount} private, {publicCount} public, and {starredCount} starred constructions",
   "foundSingle": "Found {count} {group} construction | Found {count} {group} constructions"
 }

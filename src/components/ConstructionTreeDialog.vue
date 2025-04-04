@@ -40,15 +40,15 @@
           ">
           <div class="tree-container">
             <v-treeview
-              v-model:selected="selectedFolder"
+              v-model:activated="selectedFolder"
               :items="treeItems"
               hoverable
               activatable
-              selectable
               item-title="title"
+              item-value="id"
               color="#40A082"
               return-object
-              :select-strategy="'leaf'"></v-treeview>
+              active-strategy="single-independent" />
           </div>
         </v-card-text>
       </div>
@@ -128,7 +128,7 @@
           v-if="!isMoveModeActive"
           color="#40A082"
           class="mr-2"
-          @click="handleLoadClick">
+          @click="visible = false">
           LOAD SELECTED
         </v-btn>
         <v-btn v-else color="#40A082" class="mr-2" @click="confirmMove">
@@ -143,7 +143,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, ref, onMounted } from "vue";
+import { defineProps, defineEmits, ref, onMounted, watch } from "vue";
 import FolderActions from "@/components/FolderActions.vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
 
@@ -164,17 +164,6 @@ const targetFolder = ref([]);
 const newFolderName = ref("");
 const parentFolder = ref("");
 const isMoveModeActive = ref(false);
-
-// Handle Load button click
-function handleLoadClick() {
-  if (checkedConstructions.value && checkedConstructions.value.length > 0) {
-    console.log(
-      "[handleLoadClick] " + JSON.stringify(checkedConstructions.value)
-    );
-    selectedFolder.value = checkedConstructions.value;
-    visible.value = false;
-  }
-}
 
 // Handle node selection
 function handleNodeSelection(value: string[]) {

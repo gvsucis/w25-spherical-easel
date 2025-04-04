@@ -22,7 +22,7 @@
       @move="" />
 
     <!-- Panels for Constructions -->
-    <PanelsContainer />
+    <PanelsContainer :selected-folder="folderToLoad" />
   </div>
 </template>
 
@@ -35,7 +35,7 @@ import { useFolderActions } from "@/composables/useFolderActions";
 import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
-import { TreeviewNode } from "@/types/ConstructionTypes";
+import { ConstructionPath } from "@/types/ConstructionTypes";
 
 const moveConstructionHandler = () => {
   moveConstruction(checkedConstructions.value, parentFolder.value);
@@ -67,12 +67,20 @@ const parentFolder = ref(""); // Define parentFolder in parent
 
 // Dialog State
 const showDialog = ref(false);
-const folderToLoad: Ref<undefined | TreeviewNode> = ref(undefined);
+const folderToLoad: Ref<string> = ref("");
 
 watch(
   () => folderToLoad.value,
   newValue => {
     console.log("[folderToload] " + JSON.stringify(newValue));
+    console.log(
+      "[folder contents] " +
+        JSON.stringify(
+          constructionStore.constructionTree.getFolderContents(
+            new ConstructionPath(newValue[0])
+          )
+        )
+    );
   },
   { deep: true }
 );
