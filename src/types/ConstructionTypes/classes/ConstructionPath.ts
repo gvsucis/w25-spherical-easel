@@ -61,7 +61,7 @@ class ConstructionPath {
     }
 
     // if the path lacks a slash at the end, add it
-    if (!path.endsWith("/")) path = path + "/";
+    if (path.length > 0 && !path.endsWith("/")) path = path + "/";
     this.path = path;
   }
 
