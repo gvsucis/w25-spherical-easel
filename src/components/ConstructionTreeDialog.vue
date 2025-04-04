@@ -3,140 +3,115 @@
     :modelValue="modelValue"
     @update:modelValue="handleUpdateModelValue"
     max-width="800px"
-  >
+    >
     <v-card color="#E8F5F1" theme="light" style="overflow: hidden;">
       <v-card-title class="text-mint-dark">
-        {{ !isMoveModeActive ? 'Load Construction Folders' : 'Move Constructions' }}
+        {{ selectedTab === 0 ? 'Load Construction Folders' : 'Move Constructions' }}
       </v-card-title>
 
-      <!-- Buttons at the top with space in between -->
-      <div class="d-flex pa-4">
-        <!-- Individual buttons with margin -->
-        <v-btn 
-          :color="!isMoveModeActive ? '#40A082' : '#40A082'"
-          :variant="!isMoveModeActive ? 'flat' : 'outlined'"
-          @click="isMoveModeActive = false"
-          class="mr-2 mode-btn"
-          :class="{ 'active-mode-btn': !isMoveModeActive }"
-        >
-          LOAD
-        </v-btn>
-        
-        <v-btn 
-          :color="isMoveModeActive ? '#40A082' : '#40A082'"
-          :variant="isMoveModeActive ? 'flat' : 'outlined'"
-          @click="isMoveModeActive = true"
-          class="mode-btn"
-          :class="{ 'active-mode-btn': isMoveModeActive }"
-        >
-          MOVE
-        </v-btn>
-      </div>
+      <!-- v-tabs for navigation -->
+      <v-tabs v-model="selectedTab" background-color="transparent" color="#40A082">
+        <v-tab>LOAD</v-tab>
+        <v-tab>MOVE</v-tab>
+      </v-tabs>
 
-      <!-- Load View -->
-      <div v-if="!isMoveModeActive">
-        <v-card-text style="
-          padding: 24px !important;
-          max-height: 800px;
-          overflow-y: auto;
-          max-width: 100%; 
-        ">
-          <div class="tree-container">
-            <v-treeview
-              v-model:selected="checkedConstructions"
-              :items="treeItems"
-              hoverable
-              activatable
-              selectable
-              item-title="title"
-              color="#40A082"
-              return-object
-              :select-strategy="'leaf'"
-            ></v-treeview>
-          </div>
-        </v-card-text>
-      </div>
+      <v-window v-model="selectedTab">
+        <!-- Load View -->
+        <v-window-item :value="0">
+          <v-card-text style="
+            padding: 24px !important;
+            max-height: 800px;
+            overflow-y: auto;
+            max-width: 100%;
+          ">
+            <div class="tree-container">
+              <v-treeview
+                v-model:selected="checkedConstructions"
+                :items="treeItems"
+                hoverable
+                activatable
+                selectable
+                item-title="title"
+                color="#40A082"
+                return-object
+                :select-strategy="'leaf'"
+              ></v-treeview>
+            </div>
+          </v-card-text>
+        </v-window-item>
 
-      <!-- Move View -->
-      <div v-else>
-        <v-card-text style="padding: 16px !important;">
-          <v-row>
-            <!-- Left Side Title -->
-            <v-col cols="5">
-              <div class="text-subtitle-1 mb-2 text-center">SELECT CONSTRUCTIONS</div>
-            </v-col>
-            
-            <!-- Middle space -->
-            <v-col cols="2"></v-col>
-            
-            <!-- Right Side Title -->
-            <v-col cols="5">
-              <div class="text-subtitle-1 mb-2 text-center">DESTINATION FOLDER</div>
-            </v-col>
-          </v-row>
-          
-          <v-row>
-            <!-- Left Side: Source -->
-            <v-col cols="5">
-              <div class="tree-container">
-                <v-treeview
-                  v-model:selected="checkedConstructions"
-                  :items="treeItems"
-                  hoverable
-                  selectable
-                  item-title="title"
+        <!-- Move View -->
+        <v-window-item :value="1">
+          <v-card-text style="padding: 16px !important;">
+            <v-row>
+              <v-col cols="5">
+                <div class="text-subtitle-1 mb-2 text-center">SELECT CONSTRUCTIONS</div>
+              </v-col>
+              <v-col cols="2"></v-col>
+              <v-col cols="5">
+                <div class="text-subtitle-1 mb-2 text-center">DESTINATION FOLDER</div>
+              </v-col>
+            </v-row>
+
+            <v-row>
+              <v-col cols="5">
+                <div class="tree-container">
+                  <v-treeview
+                    v-model:selected="checkedConstructions"
+                    :items="treeItems"
+                    hoverable
+                    selectable
+                    item-title="title"
+                    color="#40A082"
+                    return-object
+                  ></v-treeview>
+                </div>
+              </v-col>
+
+              <v-col cols="2" class="d-flex align-center justify-center">
+                <v-btn
                   color="#40A082"
-                  return-object
-                ></v-treeview>
-              </div>
-            </v-col>
+                  @click="confirmMove"
+                  class="square-button"
+                  min-width="40px"
+                  width="40px"
+                  height="40px"
+                >
+                  <v-icon>mdi-arrow-right</v-icon>
+                </v-btn>
+              </v-col>
 
-            <!-- Middle: Move Button -->
-            <v-col cols="2" class="d-flex align-center justify-center">
-              <v-btn 
-                color="#40A082" 
-                @click="confirmMove"
-                class="square-button"
-                min-width="40px"
-                width="40px"
-                height="40px"
-              >
-                <v-icon>mdi-arrow-right</v-icon>
-              </v-btn>
-            </v-col>
-
-            <!-- Right Side: Destination -->
-            <v-col cols="5">
-              <div class="tree-container">
-                <v-treeview
-                  v-model:active="targetFolder"
-                  :items="treeItems"
-                  hoverable
-                  activatable
-                  item-title="title"
-                  color="#40A082"
-                  return-object
-                ></v-treeview>
-              </div>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </div>
+              <v-col cols="5">
+                <div class="tree-container">
+                  <v-treeview
+                    v-model:active="targetFolder"
+                    :items="treeItems"
+                    hoverable
+                    activatable
+                    item-title="title"
+                    color="#40A082"
+                    return-object
+                  ></v-treeview>
+                </div>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-window-item>
+      </v-window>
 
       <!-- Buttons at bottom -->
       <v-card-actions style="padding: 16px 24px !important;">
         <v-spacer></v-spacer>
-        <!-- Action button that changes based on mode -->
-        <v-btn 
-          v-if="!isMoveModeActive" 
-          color="#40A082" 
+        <v-btn
+          v-if="selectedTab === 0"
+          color="#40A082"
           class="mr-2"
           @click="handleLoadClick">
           LOAD SELECTED
         </v-btn>
-        <v-btn 
-          v-else 
-          color="#40A082" 
+        <v-btn
+          v-else
+          color="#40A082"
           class="mr-2"
           @click="confirmMove">
           CONFIRM MOVE
@@ -169,6 +144,7 @@ const targetFolder = ref([]);
 const newFolderName = ref('');
 const parentFolder = ref('');
 const isMoveModeActive = ref(false);
+const selectedTab = ref(0); // Controls v-tabs
 
 // Handle Load button click
 function handleLoadClick() {
