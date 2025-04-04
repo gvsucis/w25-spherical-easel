@@ -7,7 +7,7 @@
     <v-btn
       color="#40A082"
       class="mt-4"
-      @click="filteredSelectedConstructions.clear()"
+      @click="internalSelectedOverride = true"
       block
       max-width="300px">
       return to default view
@@ -191,6 +191,7 @@ watch(
     }
     filteredSelectedConstructions.value.splice(0);
     filteredSelectedConstructions.value.push(...selectedConstructions);
+    internalSelectedOverride.value = false;
   }
 );
 
@@ -202,11 +203,12 @@ const openMultiple = ref(false);
 
 let lastSearchKey: string | null = null;
 
+const internalSelectedOverride = ref(false);
 const selectedVisible = computed(() => {
   return (
     selectedFolder.value &&
     selectedFolder.value.length > 0 &&
-    filteredSelectedConstructions.value.length > 0
+    !internalSelectedOverride.value
   );
 });
 
@@ -221,62 +223,73 @@ watch(idle, (isIdle: boolean) => {
   if (searchKey.value.length == 0) {
     searchResult.value = "";
     // If no search key, reset all the arr to full contents
-    filteredPublicConstructions.value.splice(0);
-    filteredPrivateConstructions.value.splice(0);
-    filteredStarredConstructions.value.splice(0);
+    filteredPublicConstructions.value.clear();
+    filteredPrivateConstructions.value.clear();
+    filteredStarredConstructions.value.clear();
+    filteredSelectedConstructions.value.clear();
     filteredPublicConstructions.value.push(...publicConstructions.value);
     filteredPrivateConstructions.value.push(...privateConstructions.value);
     filteredStarredConstructions.value.push(...starredConstructions.value);
+    filteredSelectedConstructions.value.push(...selectedConstructions);
   } else {
-    lastSearchKey = searchKey.value;
-    //openPanels.value.splice(0);
-    searchResult.value = "";
-    const matchFound = [];
-    const privateMatch = privateConstructions.value.filter(
-      (c: SphericalConstruction) =>
-        c.description.toLowerCase().includes(searchKey.value.toLowerCase())
-    );
-    if (privateMatch.length > 0) {
-      matchFound.push("private");
-      filteredPrivateConstructions.value = privateMatch;
+    if (!selectedVisible.value) {
+      lastSearchKey = searchKey.value;
+      //openPanels.value.splice(0);
+      searchResult.value = "";
+      const matchFound = [];
+      const privateMatch = privateConstructions.value.filter(
+        (c: SphericalConstruction) =>
+          c.description.toLowerCase().includes(searchKey.value.toLowerCase())
+      );
+      if (privateMatch.length > 0) {
+        matchFound.push("private");
+        filteredPrivateConstructions.value = privateMatch;
+      } else {
+        filteredPrivateConstructions.value.splice(0);
+      }
+      const publicMatch = publicConstructions.value.filter(
+        (c: SphericalConstruction) =>
+          c.description.toLowerCase().includes(searchKey.value.toLowerCase())
+      );
+      if (publicMatch.length > 0) {
+        matchFound.push("public");
+        filteredPublicConstructions.value = publicMatch;
+      } else {
+        filteredPublicConstructions.value.splice(0);
+      }
+      const starredMatch = starredConstructions.value.filter(
+        (c: SphericalConstruction) =>
+          c.description.toLowerCase().includes(searchKey.value.toLowerCase())
+      );
+      if (starredMatch.length > 0) {
+        matchFound.push("starred");
+        filteredStarredConstructions.value = starredMatch;
+      } else {
+        filteredStarredConstructions.value.splice(0);
+      }
+      if (matchFound.length > 1) {
+        openMultiple.value = true;
+        openPanels.value = matchFound;
+        searchResult.value = t(`foundMultiple`, {
+          privateCount: privateMatch.length,
+          publicCount: publicMatch.length,
+          starredCount: privateMatch.length
+        });
+      } else {
+        openMultiple.value = false;
+        openPanels.value = matchFound[0];
+        searchResult.value = t("foundSingle", {
+          count: (privateMatch?.length ?? 0) + publicMatch.length,
+          group: matchFound[0]
+        });
+      }
     } else {
-      filteredPrivateConstructions.value.splice(0);
-    }
-    const publicMatch = publicConstructions.value.filter(
-      (c: SphericalConstruction) =>
-        c.description.toLowerCase().includes(searchKey.value.toLowerCase())
-    );
-    if (publicMatch.length > 0) {
-      matchFound.push("public");
-      filteredPublicConstructions.value = publicMatch;
-    } else {
-      filteredPublicConstructions.value.splice(0);
-    }
-    const starredMatch = starredConstructions.value.filter(
-      (c: SphericalConstruction) =>
-        c.description.toLowerCase().includes(searchKey.value.toLowerCase())
-    );
-    if (starredMatch.length > 0) {
-      matchFound.push("starred");
-      filteredStarredConstructions.value = starredMatch;
-    } else {
-      filteredStarredConstructions.value.splice(0);
-    }
-    if (matchFound.length > 1) {
-      openMultiple.value = true;
-      openPanels.value = matchFound;
-      searchResult.value = t(`foundMultiple`, {
-        privateCount: privateMatch.length,
-        publicCount: publicMatch.length,
-        starredCount: privateMatch.length
-      });
-    } else {
-      openMultiple.value = false;
-      openPanels.value = matchFound[0];
-      searchResult.value = t("foundSingle", {
-        count: (privateMatch?.length ?? 0) + publicMatch.length,
-        group: matchFound[0]
-      });
+      openPanels.value = ["selected"];
+      /* handle selected constructions a bit differently */
+      filteredSelectedConstructions.value = selectedConstructions.filter(
+        (c: SphericalConstruction) =>
+          c.description.toLowerCase().includes(searchKey.value.toLowerCase())
+      );
     }
   }
   // reset the idle timer
