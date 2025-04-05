@@ -13,8 +13,8 @@
         <v-tab>LOAD</v-tab>
         <v-tab>MOVE</v-tab>
       </v-tabs>
-
-      <v-window v-model="selectedTab">
+<!-- TODO: Remove const. nodes & reference ConstructionTree.ts -->
+<v-window v-model="selectedTab">
         <!-- Load View -->
         <v-window-item :value="0">
           <v-card-text style="
@@ -78,6 +78,7 @@
                   <v-icon>mdi-arrow-right</v-icon>
                 </v-btn>
               </v-col>
+<!-- TODO: Remove const. nodes & reference ConstructionTree.ts -->
 
               <v-col cols="5">
                 <div class="tree-container">
