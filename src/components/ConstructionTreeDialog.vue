@@ -13,20 +13,18 @@
         <v-tab>LOAD</v-tab>
         <v-tab>MOVE</v-tab>
       </v-tabs>
-<!-- TODO: Remove const. nodes & reference ConstructionTree.ts -->
-<v-window v-model="selectedTab">
+      
+      <v-window v-model="selectedTab">
         <!-- Load View -->
         <v-window-item :value="0">
           <v-card-text style="
             padding: 24px !important;
-            max-height: 800px;
-            overflow-y: auto;
             max-width: 100%;
           ">
             <div class="tree-container">
               <v-treeview
-              v-model:activated="loadFolderInternal"
-                :items="treeItems"
+                v-model:activated="loadFolderInternal"
+                :items="nonPublicFolderItems"
                 hoverable
                 activatable
                 item-title="title"
@@ -56,7 +54,7 @@
                 <div class="tree-container">
                   <v-treeview
                     v-model:selected="checkedConstructions"
-                    :items="treeItems"
+                    :items="nonPublicTreeItems"
                     hoverable
                     selectable
                     item-title="title"
@@ -78,13 +76,12 @@
                   <v-icon>mdi-arrow-right</v-icon>
                 </v-btn>
               </v-col>
-<!-- TODO: Remove const. nodes & reference ConstructionTree.ts -->
 
               <v-col cols="5">
                 <div class="tree-container">
                   <v-treeview
                     v-model:active="targetFolder"
-                    :items="treeItems"
+                    :items="nonPublicFolderItems"
                     hoverable
                     activatable
                     item-title="title"
@@ -117,8 +114,9 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, ref, onMounted, watch } from "vue";
+import { defineProps, defineEmits, ref, onMounted, watch, computed } from "vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
+import { useConstructionStore } from "@/stores/construction"; // Adjust the import path as needed
 
 const props = defineProps({
   treeItems: Array // Prop for tree data
@@ -130,6 +128,26 @@ const loadFolder = defineModel("loadFolder");
 const emit = defineEmits<{
   (e: "move", checked: any, destination: string | object): void;
 }>();
+
+// Get the construction store to access the constructionTree
+const constructionStore = useConstructionStore();
+
+// Create computed properties for filtered folder views
+const nonPublicFolderItems = computed(() => {
+  const allFolders = constructionStore.constructionTree.getFolders();
+  // Filter out the Public Constructions root
+  return allFolders.filter(folder => folder.title !== "Public Constructions");
+});
+
+// Create a computed property to filter public constructions from the tree items
+const nonPublicTreeItems = computed(() => {
+  if (!props.treeItems || !Array.isArray(props.treeItems)) {
+    return [];
+  }
+  
+  // Filter out the Public Constructions root from the original treeItems
+  return (props.treeItems as any[]).filter(item => item.title !== "Public Constructions");
+});
 
 // State variables
 const checkedConstructions = ref([]);
@@ -170,12 +188,16 @@ const loadSelected = () => {
 
 onMounted(() => {
   console.log("Tree items:", props.treeItems);
+  console.log("Non-public folder items:", nonPublicFolderItems.value);
+  console.log("Non-public tree items:", nonPublicTreeItems.value);
 });
 </script>
 
 <style scoped>
 :deep(.v-card-text) {
   padding: 24px !important;
+  overflow: visible !important;
+  max-height: none !important;
 }
 
 :deep(.v-card-actions) {
