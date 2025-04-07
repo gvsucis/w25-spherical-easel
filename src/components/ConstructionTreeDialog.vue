@@ -1,26 +1,25 @@
 <template>
-  <v-dialog
-    v-model="visible"
-    max-width="800px"
-    >
-    <v-card color="#E8F5F1" theme="light" style="overflow: hidden;">
+  <v-dialog v-model="visible" max-width="800px">
+    <v-card color="#E8F5F1" theme="light" style="overflow: hidden">
       <v-card-title class="text-mint-dark">
-        {{ selectedTab === 0 ? 'Load Construction Folders' : 'Move Constructions' }}
+        {{
+          selectedTab === 0 ? "Load Construction Folders" : "Move Constructions"
+        }}
       </v-card-title>
 
       <!-- v-tabs for navigation -->
-      <v-tabs v-model="selectedTab" background-color="transparent" color="#40A082">
+      <v-tabs
+        v-model="selectedTab"
+        background-color="transparent"
+        color="#40A082">
         <v-tab>LOAD</v-tab>
         <v-tab>MOVE</v-tab>
       </v-tabs>
-      
+
       <v-window v-model="selectedTab">
         <!-- Load View -->
         <v-window-item :value="0">
-          <v-card-text style="
-            padding: 24px !important;
-            max-width: 100%;
-          ">
+          <v-card-text style="padding: 24px !important; max-width: 100%">
             <div class="tree-container">
               <v-treeview
                 v-model:activated="loadFolderInternal"
@@ -38,14 +37,18 @@
 
         <!-- Move View -->
         <v-window-item :value="1">
-          <v-card-text style="padding: 16px !important;">
+          <v-card-text style="padding: 16px !important">
             <v-row>
               <v-col cols="5">
-                <div class="text-subtitle-1 mb-2 text-center font-weight-bold">SELECT CONSTRUCTIONS</div>
+                <div class="text-subtitle-1 mb-2 text-center font-weight-bold">
+                  SELECT CONSTRUCTIONS
+                </div>
               </v-col>
               <v-col cols="2"></v-col>
               <v-col cols="5">
-                <div class="text-subtitle-1 mb-2 text-center font-weight-bold">DESTINATION FOLDER</div>
+                <div class="text-subtitle-1 mb-2 text-center font-weight-bold">
+                  DESTINATION FOLDER
+                </div>
               </v-col>
             </v-row>
 
@@ -55,12 +58,12 @@
                   <v-treeview
                     v-model:selected="checkedConstructions"
                     :items="nonPublicTreeItems"
+                    item-value="id"
                     hoverable
                     selectable
                     item-title="title"
                     color="#40A082"
-                    return-object
-                  ></v-treeview>
+                    return-object></v-treeview>
                 </div>
               </v-col>
 
@@ -71,8 +74,7 @@
                   class="square-button"
                   min-width="40px"
                   width="40px"
-                  height="40px"
-                >
+                  height="40px">
                   <v-icon>mdi-arrow-right</v-icon>
                 </v-btn>
               </v-col>
@@ -80,14 +82,15 @@
               <v-col cols="5">
                 <div class="tree-container">
                   <v-treeview
-                    v-model:active="targetFolder"
+                    v-model:activated="targetFolder"
                     :items="nonPublicFolderItems"
                     hoverable
                     activatable
+                    item-value="id"
                     item-title="title"
                     color="#40A082"
-                    return-object
-                  ></v-treeview>
+                    active-strategy="single-independent"
+                    return-object />
                 </div>
               </v-col>
             </v-row>
@@ -117,6 +120,7 @@
 import { defineProps, defineEmits, ref, onMounted, watch, computed } from "vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
 import { useConstructionStore } from "@/stores/construction"; // Adjust the import path as needed
+import { ConstructionPath } from "@/types/ConstructionTypes";
 
 const props = defineProps({
   treeItems: Array // Prop for tree data
@@ -124,10 +128,6 @@ const props = defineProps({
 
 const visible = defineModel("visible");
 const loadFolder = defineModel("loadFolder");
-
-const emit = defineEmits<{
-  (e: "move", checked: any, destination: string | object): void;
-}>();
 
 // Get the construction store to access the constructionTree
 const constructionStore = useConstructionStore();
@@ -144,9 +144,11 @@ const nonPublicTreeItems = computed(() => {
   if (!props.treeItems || !Array.isArray(props.treeItems)) {
     return [];
   }
-  
+
   // Filter out the Public Constructions root from the original treeItems
-  return (props.treeItems as any[]).filter(item => item.title !== "Public Constructions");
+  return (props.treeItems as any[]).filter(
+    item => item.title !== "Public Constructions"
+  );
 });
 
 // State variables
@@ -157,19 +159,16 @@ const parentFolder = ref("");
 const isMoveModeActive = ref(false);
 const selectedTab = ref(0); // Controls v-tabs
 
-// Handle move construction
-function moveConstruction() {
-  if (newFolderName.value) {
-    emit("move", checkedConstructions.value, newFolderName.value);
-    newFolderName.value = "";
-  }
-}
-
 // Confirm move action
 function confirmMove() {
+  console.log("got here");
+  console.log("checked: " + JSON.stringify(checkedConstructions.value));
+  console.log("target: " + JSON.stringify(targetFolder.value));
   if (checkedConstructions.value.length > 0 && targetFolder.value.length > 0) {
-    const destination = targetFolder.value[0];
-    emit("move", checkedConstructions.value, destination);
+    constructionStore.moveConstructions(
+      new ConstructionPath(targetFolder.value[0]),
+      checkedConstructions.value[0]
+    );
     visible.value = false;
   }
 }
