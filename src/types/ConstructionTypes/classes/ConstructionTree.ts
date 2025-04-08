@@ -4,14 +4,15 @@ import {
   ConstructionPathRoots,
   SphericalConstruction
 } from "..";
-import { Ref } from "vue";
+
+import { Ref, ref } from "vue";
 
 export class ConstructionTree {
   /** the root of our tree */
   private root: Array<TreeviewNode>;
 
   /** a number stored at the root of the object to give vue's watchers something to check */
-  private updateCounter: number;
+  public updateCounter: Ref<number>;
 
   /** index of the public constructions in the root node's children */
   private readonly publicIdx = 0;
@@ -43,7 +44,7 @@ export class ConstructionTree {
       false
     );
 
-    this.updateCounter = 0;
+    this.updateCounter = ref(0);
   }
 
   /**
@@ -60,7 +61,7 @@ export class ConstructionTree {
     this.clear();
     this.addOwnedConstructions(...ownedConstructions.value);
     this.addStarredConstructions(...starredConstructions.value);
-    this.updateCounter++;
+    this.updateCounter.value += 1;
   }
 
   /** append one or more construction to the owned constructions subtree */
@@ -68,7 +69,7 @@ export class ConstructionTree {
     constructions.forEach(construction => {
       this.root[this.ownedIdx].appendChildConstruction(construction);
     });
-    this.updateCounter++;
+    this.updateCounter.value += 1;
   }
 
   /**
@@ -79,7 +80,7 @@ export class ConstructionTree {
   ) {
     this.root[this.ownedIdx].children?.clear();
     this.addOwnedConstructions(...constructions.value);
-    this.updateCounter++;
+    this.updateCounter.value += 1;
   }
 
   /** append one or more constructions to the starred constructions subtree */
@@ -87,7 +88,7 @@ export class ConstructionTree {
     constructions.forEach(construction => {
       this.root[this.starredIdx].appendChildConstruction(construction);
     });
-    this.updateCounter++;
+    this.updateCounter.value += 1;
   }
 
   /**
@@ -98,7 +99,7 @@ export class ConstructionTree {
   ) {
     this.root[this.starredIdx].children?.clear();
     this.addStarredConstructions(...constructions.value);
-    this.updateCounter++;
+    this.updateCounter.value += 1;
   }
 
   /**
