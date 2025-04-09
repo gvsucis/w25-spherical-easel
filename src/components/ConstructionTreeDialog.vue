@@ -123,46 +123,36 @@ import { useConstructionStore } from "@/stores/construction"; // Adjust the impo
 import { ConstructionPath, TreeviewNode } from "@/types/ConstructionTypes";
 import { watchDebounced } from "@vueuse/core";
 
+/** v-model that controls visibility of the overall component */
 const visible = defineModel("visible");
+
+/** v-model that passes the selected folder to load in and out of this component */
 const loadFolder = defineModel("loadFolder");
 
-// Get the construction store to access the constructionTree
+/** stores the index of the currently selected v-tab */
+const selectedTab = ref(0);
+
+/** reference to the construction store's properties and functions */
 const constructionStore = useConstructionStore();
 
-/** folders to display in the load view */
-const loadFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+//
+// move functionality
+//
+
 /**
  * folders to display in the move view; this is different than the load view
  * so that disabled folders are only disabled in the move view.
  */
 const moveFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+
 /** the full construction tree excluding the public branch but including all constructions. */
 const treeItems: Ref<TreeviewNode[] | undefined> = ref(undefined);
 
-const updateTreeviews = () => {
-  /* recalculate and filter out public branches from all trees */
-  loadFolders.value = constructionStore.constructionTree
-    .getFolders()
-    .filter(folder => folder.title !== "Public Constructions");
-  treeItems.value = constructionStore.constructionTree
-    .getRoot()
-    .filter(folder => folder.title !== "Public Constructions");
-  /* copy the value of loadFolders to moveFolders */
-  moveFolders.value = loadFolders.value;
-};
-
-watchDebounced(
-  () => constructionStore.constructionTree.updateCounter,
-  _ => {
-    console.debug("saw update in construction tree update counter!");
-    updateTreeviews();
-  },
-  { debounce: 500, maxWait: 1000 }
-);
-
+/** which constructions (currently max 1) are selected in the move dialog's left side */
 const checkedConstructions = ref([]);
+
+/** which folder is selected in the move dialog's right side */
 const targetFolder = ref([]);
-const selectedTab = ref(0); // Controls v-tabs
 
 // Confirm move action
 function confirmMove() {
@@ -179,6 +169,17 @@ function confirmMove() {
   }
 }
 
+//
+// load functionality
+//
+
+/** folders to display in the load view */
+const loadFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+
+/**
+ * the selected folder in the load dialog; seperate from the loadFolder v-model
+ * so that changes aren't propogated until the confirm button is clicked
+ */
 const loadFolderInternal = ref([]);
 
 const confirmLoad = () => {
@@ -190,6 +191,30 @@ const confirmLoad = () => {
   }
   visible.value = false;
 };
+
+//
+// functionality that affects both load and move
+//
+
+const updateTreeviews = () => {
+  /* recalculate and filter out public branches from all trees */
+  loadFolders.value = constructionStore.constructionTree
+    .getFolders()
+    .filter(folder => folder.title !== "Public Constructions");
+  treeItems.value = constructionStore.constructionTree
+    .getRoot()
+    .filter(folder => folder.title !== "Public Constructions");
+  /* copy the value of loadFolders to moveFolders */
+  moveFolders.value = loadFolders.value;
+};
+
+watchDebounced(
+  () => constructionStore.constructionTree.updateCounter,
+  _ => {
+    updateTreeviews();
+  },
+  { debounce: 500, maxWait: 1000 }
+);
 
 onMounted(updateTreeviews);
 </script>
