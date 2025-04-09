@@ -14,7 +14,7 @@ export class TreeviewNode {
     this.id = id;
     this.title = title;
     this.leaf = leaf ?? false;
-    this.disabled = true;
+    this.disabled = false;
   }
 
   /**
