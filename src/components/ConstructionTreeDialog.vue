@@ -58,9 +58,9 @@
                   <v-treeview
                     v-model:selected="checkedConstructions"
                     :items="treeItems"
-                    item-value="id"
                     hoverable
                     selectable
+                    item-value="id"
                     item-title="title"
                     color="#40A082"
                     return-object></v-treeview>
@@ -83,7 +83,12 @@
                 <div class="tree-container">
                   <v-treeview
                     v-model:activated="targetFolder"
-                    :items="moveFolders"
+                    :items="
+                      moveFolders?.filter(
+                        root => root.id === allowedMoveFoldersRoot
+                      )
+                    "
+                    item-props
                     hoverable
                     activatable
                     item-value="id"
@@ -117,7 +122,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, Ref, onMounted } from "vue";
+import { defineEmits, ref, Ref, onMounted, watch } from "vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
 import { useConstructionStore } from "@/stores/construction"; // Adjust the import path as needed
 import { ConstructionPath, TreeviewNode } from "@/types/ConstructionTypes";
@@ -145,6 +150,8 @@ const constructionStore = useConstructionStore();
  */
 const moveFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
 
+const allowedMoveFoldersRoot: Ref<String> = ref("");
+
 /** the full construction tree excluding the public branch but including all constructions. */
 const treeItems: Ref<TreeviewNode[] | undefined> = ref(undefined);
 
@@ -156,10 +163,6 @@ const targetFolder = ref([]);
 
 // Confirm move action
 function confirmMove() {
-  console.log("got here");
-  console.log("checked: " + JSON.stringify(checkedConstructions.value));
-  console.log("target: " + JSON.stringify(targetFolder.value));
-
   if (checkedConstructions.value.length > 0 && targetFolder.value.length > 0) {
     constructionStore.moveConstructions(
       new ConstructionPath(targetFolder.value[0]),
@@ -168,6 +171,29 @@ function confirmMove() {
     visible.value = false;
   }
 }
+
+watch(
+  () => checkedConstructions.value,
+  _ => {
+    if (checkedConstructions.value.length > 0) {
+      const checked = checkedConstructions.value[0];
+      // determine whether the checked construction is owned or starred
+      if (
+        constructionStore.privateConstructions.some(item => item.id === checked)
+      ) {
+        // construction is owned
+        allowedMoveFoldersRoot.value = "Owned Constructions";
+      } else if (
+        constructionStore.starredConstructions.some(item => item.id === checked)
+      ) {
+        // construction is starred
+        allowedMoveFoldersRoot.value = "Starred Constructions";
+      }
+    } else {
+      allowedMoveFoldersRoot.value = "";
+    }
+  }
+);
 
 //
 // load functionality

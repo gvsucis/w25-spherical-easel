@@ -7,12 +7,14 @@ export class TreeviewNode {
   public id: string;
   public title: string;
   public leaf: boolean;
+  public disabled: boolean;
   public children?: Array<TreeviewNode>;
 
   constructor(id: string, title: string, leaf?: boolean) {
     this.id = id;
     this.title = title;
     this.leaf = leaf ?? false;
+    this.disabled = true;
   }
 
   /**
