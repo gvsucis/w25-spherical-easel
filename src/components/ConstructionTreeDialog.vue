@@ -105,7 +105,7 @@
           v-if="selectedTab === 0"
           color="#40A082"
           class="mr-2"
-          @click="loadSelected">
+          @click="confirmLoad">
           LOAD SELECTED
         </v-btn>
         <v-btn color="#40A082" variant="outlined" @click="visible = false">
@@ -181,7 +181,7 @@ function confirmMove() {
 
 const loadFolderInternal = ref([]);
 
-const loadSelected = () => {
+const confirmLoad = () => {
   // sync the two values
   if (loadFolderInternal.value.length > 0) {
     loadFolder.value = loadFolderInternal.value[0];
