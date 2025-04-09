@@ -168,7 +168,6 @@ function confirmMove() {
       new ConstructionPath(targetFolder.value[0]),
       checkedConstructions.value[0]
     );
-    visible.value = false;
   }
 }
 
