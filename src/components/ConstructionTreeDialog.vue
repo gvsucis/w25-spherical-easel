@@ -23,7 +23,7 @@
             <div class="tree-container">
               <v-treeview
                 v-model:activated="loadFolderInternal"
-                :items="nonPublicFolderItems"
+                :items="folders"
                 hoverable
                 activatable
                 item-title="title"
@@ -57,7 +57,7 @@
                 <div class="tree-container">
                   <v-treeview
                     v-model:selected="checkedConstructions"
-                    :items="nonPublicTreeItems"
+                    :items="treeItems"
                     item-value="id"
                     hoverable
                     selectable
@@ -83,7 +83,7 @@
                 <div class="tree-container">
                   <v-treeview
                     v-model:activated="targetFolder"
-                    :items="nonPublicFolderItems"
+                    :items="folders"
                     hoverable
                     activatable
                     item-value="id"
@@ -117,14 +117,11 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, ref, onMounted, watch, computed } from "vue";
+import { defineEmits, ref, Ref } from "vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
 import { useConstructionStore } from "@/stores/construction"; // Adjust the import path as needed
-import { ConstructionPath } from "@/types/ConstructionTypes";
-
-const props = defineProps({
-  treeItems: Array // Prop for tree data
-});
+import { ConstructionPath, TreeviewNode } from "@/types/ConstructionTypes";
+import { watchDebounced } from "@vueuse/core";
 
 const visible = defineModel("visible");
 const loadFolder = defineModel("loadFolder");
@@ -132,24 +129,23 @@ const loadFolder = defineModel("loadFolder");
 // Get the construction store to access the constructionTree
 const constructionStore = useConstructionStore();
 
-// Create computed properties for filtered folder views
-const nonPublicFolderItems = computed(() => {
-  const allFolders = constructionStore.constructionTree.getFolders();
-  // Filter out the Public Constructions root
-  return allFolders.filter(folder => folder.title !== "Public Constructions");
-});
+const folders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+const treeItems: Ref<TreeviewNode[] | undefined> = ref(undefined);
 
-// Create a computed property to filter public constructions from the tree items
-const nonPublicTreeItems = computed(() => {
-  if (!props.treeItems || !Array.isArray(props.treeItems)) {
-    return [];
-  }
-
-  // Filter out the Public Constructions root from the original treeItems
-  return (props.treeItems as any[]).filter(
-    item => item.title !== "Public Constructions"
-  );
-});
+watchDebounced(
+  () => constructionStore.constructionTree.updateCounter,
+  _ => {
+    console.log("saw update in construction tree update counter!");
+    /* recalculated and filter out public branches from both trees */
+    folders.value = constructionStore.constructionTree
+      .getFolders()
+      .filter(folder => folder.title !== "Public Constructions");
+    treeItems.value = constructionStore.constructionTree
+      .getRoot()
+      .filter(folder => folder.title !== "Public Constructions");
+  },
+  { debounce: 500, maxWait: 1000 }
+);
 
 // State variables
 const checkedConstructions = ref([]);
@@ -164,6 +160,7 @@ function confirmMove() {
   console.log("got here");
   console.log("checked: " + JSON.stringify(checkedConstructions.value));
   console.log("target: " + JSON.stringify(targetFolder.value));
+
   if (checkedConstructions.value.length > 0 && targetFolder.value.length > 0) {
     constructionStore.moveConstructions(
       new ConstructionPath(targetFolder.value[0]),
@@ -184,12 +181,6 @@ const loadSelected = () => {
   }
   visible.value = false;
 };
-
-onMounted(() => {
-  console.log("Tree items:", props.treeItems);
-  console.log("Non-public folder items:", nonPublicFolderItems.value);
-  console.log("Non-public tree items:", nonPublicTreeItems.value);
-});
 </script>
 
 <style scoped>

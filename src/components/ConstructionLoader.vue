@@ -17,7 +17,6 @@
       v-if="firebaseUid && firebaseUid.length > 0"
       v-model:visible="showDialog"
       v-model:loadFolder="folderToLoad"
-      :tree-items="treeItems"
       :checked-constructions="checkedConstructions"
       @move="" />
 
@@ -45,20 +44,6 @@ const acctStore = useAccountStore();
 const constructionStore = useConstructionStore();
 const { firebaseUid } = storeToRefs(acctStore);
 
-// Tree Items for File Structure
-const treeItems = computed(() => {
-  return constructionStore.constructionTree.getRoot();
-});
-
-// watcher to debug updates to treeItems
-watch(
-  () => treeItems.value,
-  newValue => {
-    console.log("Tree Items Updated:", newValue);
-  },
-  { deep: true }
-);
-
 // Folder Actions Setup
 const { checkedConstructions, moveConstruction } = useFolderActions();
 const newFolderName = ref(""); // Define newFolderName in parent
@@ -67,20 +52,4 @@ const parentFolder = ref(""); // Define parentFolder in parent
 // Dialog State
 const showDialog = ref(false);
 const folderToLoad: Ref<string> = ref("");
-
-watch(
-  () => folderToLoad.value,
-  newValue => {
-    console.log("[folderToload] " + JSON.stringify(newValue));
-    console.log(
-      "[folder contents] " +
-        JSON.stringify(
-          constructionStore.constructionTree.getFolderContents(
-            new ConstructionPath(newValue[0])
-          )
-        )
-    );
-  },
-  { deep: true }
-);
 </script>
