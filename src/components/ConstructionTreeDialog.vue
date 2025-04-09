@@ -23,7 +23,7 @@
             <div class="tree-container">
               <v-treeview
                 v-model:activated="loadFolderInternal"
-                :items="folders"
+                :items="loadFolders"
                 hoverable
                 activatable
                 item-title="title"
@@ -83,7 +83,7 @@
                 <div class="tree-container">
                   <v-treeview
                     v-model:activated="targetFolder"
-                    :items="folders"
+                    :items="moveFolders"
                     hoverable
                     activatable
                     item-value="id"
@@ -117,7 +117,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, Ref } from "vue";
+import { defineEmits, ref, Ref, onMounted } from "vue";
 import { VTreeview } from "vuetify/labs/VTreeview";
 import { useConstructionStore } from "@/stores/construction"; // Adjust the import path as needed
 import { ConstructionPath, TreeviewNode } from "@/types/ConstructionTypes";
@@ -129,30 +129,39 @@ const loadFolder = defineModel("loadFolder");
 // Get the construction store to access the constructionTree
 const constructionStore = useConstructionStore();
 
-const folders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+/** folders to display in the load view */
+const loadFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+/**
+ * folders to display in the move view; this is different than the load view
+ * so that disabled folders are only disabled in the move view.
+ */
+const moveFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
+/** the full construction tree excluding the public branch but including all constructions. */
 const treeItems: Ref<TreeviewNode[] | undefined> = ref(undefined);
+
+const updateTreeviews = () => {
+  /* recalculate and filter out public branches from all trees */
+  loadFolders.value = constructionStore.constructionTree
+    .getFolders()
+    .filter(folder => folder.title !== "Public Constructions");
+  treeItems.value = constructionStore.constructionTree
+    .getRoot()
+    .filter(folder => folder.title !== "Public Constructions");
+  /* copy the value of loadFolders to moveFolders */
+  moveFolders.value = loadFolders.value;
+};
 
 watchDebounced(
   () => constructionStore.constructionTree.updateCounter,
   _ => {
-    console.log("saw update in construction tree update counter!");
-    /* recalculated and filter out public branches from both trees */
-    folders.value = constructionStore.constructionTree
-      .getFolders()
-      .filter(folder => folder.title !== "Public Constructions");
-    treeItems.value = constructionStore.constructionTree
-      .getRoot()
-      .filter(folder => folder.title !== "Public Constructions");
+    console.debug("saw update in construction tree update counter!");
+    updateTreeviews();
   },
   { debounce: 500, maxWait: 1000 }
 );
 
-// State variables
 const checkedConstructions = ref([]);
 const targetFolder = ref([]);
-const newFolderName = ref("");
-const parentFolder = ref("");
-const isMoveModeActive = ref(false);
 const selectedTab = ref(0); // Controls v-tabs
 
 // Confirm move action
@@ -181,6 +190,8 @@ const loadSelected = () => {
   }
   visible.value = false;
 };
+
+onMounted(updateTreeviews);
 </script>
 
 <style scoped>
