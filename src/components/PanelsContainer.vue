@@ -136,6 +136,7 @@ const { idle, reset } = useIdle(500); // wait for 0.5 second idle
 
 // Define props for the component
 const props = defineProps({
+  /** the user-selected folder to load into the side panel */
   selectedFolder: {
     type: String,
     required: true
@@ -162,10 +163,10 @@ onMounted(() => {
   filteredStarredConstructions.value.push(...starredConstructions.value);
 });
 
+// watch the selected folder value so the side panel can be updated reactively
 watch(
   () => selectedFolder.value,
   value => {
-    console.log("selectedFolder: " + JSON.stringify(value));
     const path: ConstructionPath = new ConstructionPath(value);
     /* path validity is checked in getFolderContents */
     var contents: Array<TreeviewNode> | undefined =
@@ -174,10 +175,8 @@ watch(
     selectedConstructions.splice(0);
     /* if the contents result is not undefined, use it to build the new contents array */
     if (contents) {
-      console.debug("contents is valid");
       /* remove any non-leaves */
       contents = contents.filter(item => item.leaf);
-      console.debug("contents post-filter: " + JSON.stringify(contents));
       /* build the array */
       if (path.getRoot() == ConstructionPathRoots.OWNED) {
         selectedConstructions = privateConstructions.value.filter(item =>
@@ -210,58 +209,74 @@ const selectedVisible = computed(() => {
   );
 });
 
+// handle the search
 watch(idle, (isIdle: boolean) => {
+  /* don't run if the user is still typing */
   if (!isIdle) {
     return;
   }
   if (lastSearchKey === searchKey.value) {
+    /* do nothing if the search key is the same as it was last time we checked */
     reset();
     return;
   }
+  /* if the search key is blank, reset the lists */
   if (searchKey.value.length == 0) {
     searchResult.value = "";
-    // If no search key, reset all the arr to full contents
     filteredPublicConstructions.value.splice(0);
     filteredPrivateConstructions.value.splice(0);
     filteredStarredConstructions.value.splice(0);
     filteredPublicConstructions.value.push(...publicConstructions.value);
     filteredPrivateConstructions.value.push(...privateConstructions.value);
     filteredStarredConstructions.value.push(...starredConstructions.value);
+    /* if the search key is not empty, filter the array elements */
   } else {
     lastSearchKey = searchKey.value;
-    //openPanels.value.splice(0);
     searchResult.value = "";
     const matchFound = [];
+    /* filter the private constructions to those whose title matches the search key */
     const privateMatch = privateConstructions.value.filter(
       (c: SphericalConstruction) =>
         c.description.toLowerCase().includes(searchKey.value.toLowerCase())
     );
+    /* if we found any matches in the private/owned folder, add it to the output string */
     if (privateMatch.length > 0) {
       matchFound.push("private");
       filteredPrivateConstructions.value = privateMatch;
+      /* if we didn't find any constructions in the private/owned folder, clear the display list */
     } else {
       filteredPrivateConstructions.value.splice(0);
     }
+
+    /* filter the public constructions */
     const publicMatch = publicConstructions.value.filter(
       (c: SphericalConstruction) =>
         c.description.toLowerCase().includes(searchKey.value.toLowerCase())
     );
+    /* if we found any matches in the public folder, add it to the output string */
     if (publicMatch.length > 0) {
       matchFound.push("public");
       filteredPublicConstructions.value = publicMatch;
     } else {
+      /* if we didn't find any constructions in the public folder, clear the display list */
       filteredPublicConstructions.value.splice(0);
     }
+
+    /* filter the starred constructions */
     const starredMatch = starredConstructions.value.filter(
       (c: SphericalConstruction) =>
         c.description.toLowerCase().includes(searchKey.value.toLowerCase())
     );
+    /* if we found any matches in the public folder, add it to the output string */
     if (starredMatch.length > 0) {
       matchFound.push("starred");
       filteredStarredConstructions.value = starredMatch;
+      /* if we didn't find any constructions in the public folder, clear the display list */
     } else {
       filteredStarredConstructions.value.splice(0);
     }
+
+    /* if we found multiple matches, use the foundMultiple string */
     if (matchFound.length > 1) {
       openMultiple.value = true;
       openPanels.value = matchFound;
@@ -270,6 +285,7 @@ watch(idle, (isIdle: boolean) => {
         publicCount: publicMatch.length,
         starredCount: privateMatch.length
       });
+      /* if we found only one match, use the foundSingle string */
     } else {
       openMultiple.value = false;
       openPanels.value = matchFound[0];
@@ -283,6 +299,7 @@ watch(idle, (isIdle: boolean) => {
   reset();
 });
 
+// update the filtered lists alongside the private/public/starred constructions updating
 watch(
   [
     () => privateConstructions.value,

@@ -41,13 +41,13 @@
             <v-row>
               <v-col cols="5">
                 <div class="text-subtitle-1 mb-2 text-center font-weight-bold">
-                  SELECT CONSTRUCTIONS
+                  {{ t("selectConstructionsLabel") }}
                 </div>
               </v-col>
               <v-col cols="2"></v-col>
               <v-col cols="5">
                 <div class="text-subtitle-1 mb-2 text-center font-weight-bold">
-                  DESTINATION FOLDER
+                  {{ t("destinationFolderLabel") }}
                 </div>
               </v-col>
             </v-row>
@@ -127,6 +127,10 @@ import { VTreeview } from "vuetify/labs/VTreeview";
 import { useConstructionStore } from "@/stores/construction"; // Adjust the import path as needed
 import { ConstructionPath, TreeviewNode } from "@/types/ConstructionTypes";
 import { watchDebounced } from "@vueuse/core";
+import { useI18n } from "vue-i18n";
+
+// Get the translation function
+const { t } = useI18n();
 
 /** v-model that controls visibility of the overall component */
 const visible = defineModel("visible");
@@ -150,6 +154,7 @@ const constructionStore = useConstructionStore();
  */
 const moveFolders: Ref<TreeviewNode[] | undefined> = ref(undefined);
 
+/** the root folder string to match against when determining which root folder to show between public/owned/starred */
 const allowedMoveFoldersRoot: Ref<String> = ref("");
 
 /** the full construction tree excluding the public branch but including all constructions. */
@@ -171,6 +176,7 @@ function confirmMove() {
   }
 }
 
+// watch the checked constructions value to keep the allowedMoveFoldersRoot up to date
 watch(
   () => checkedConstructions.value,
   _ => {
@@ -233,6 +239,7 @@ const updateTreeviews = () => {
   moveFolders.value = loadFolders.value;
 };
 
+// update the treeviews when the full treeview changes
 watchDebounced(
   () => constructionStore.constructionTree.updateCounter,
   _ => {
@@ -241,6 +248,7 @@ watchDebounced(
   { debounce: 500, maxWait: 1000 }
 );
 
+// set the treeviews on mount
 onMounted(updateTreeviews);
 </script>
 
@@ -310,3 +318,10 @@ onMounted(updateTreeviews);
   min-width: max-content;
 }
 </style>
+
+<i18n locale="en" lang="json">
+{
+  "selectConstructionsLabel": "SELECT CONSTRUCTIONS",
+  "destinationFolderLabel": "DESTINATION FOLDER"
+}
+</i18n>

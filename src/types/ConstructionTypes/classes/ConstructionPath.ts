@@ -18,17 +18,28 @@ enum ConstructionPathError {
   TOOLONG
 }
 
+/**
+ * names of the root folders for constructions - useful for determining which folder to place a path into
+ * when interacting with it
+ */
 enum ConstructionPathRoots {
+  /** NONE - this path had no (parseable) root construction path */
   NONE = "",
+  /** this construction path belongs to the public constructions */
   PUBLIC = "Public Constructions",
+  /** this construction path belongs to the owned constructions */
   OWNED = "Owned Constructions",
+  /** this construction path belongs to the starred constructions */
   STARRED = "Starred Constructions"
 }
 
 /** class representing a construction path that does some basic error checking and validation */
 class ConstructionPath {
+  /** string literal of the path */
   private path: string;
+  /** which root folder this path belongs to */
   private root: ConstructionPathRoots;
+  /** the error associated with this path */
   private cachedError: ConstructionPathError | undefined;
 
   /**

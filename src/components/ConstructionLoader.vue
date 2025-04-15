@@ -25,22 +25,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed, Ref } from "vue";
+import { ref, Ref } from "vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
 import { useAccountStore } from "@/stores/account";
-import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
-import { ConstructionPath } from "@/types/ConstructionTypes";
 
 // Store Setup
 const acctStore = useAccountStore();
-const constructionStore = useConstructionStore();
 const { firebaseUid } = storeToRefs(acctStore);
-
-// Folder Actions Setup
-const newFolderName = ref(""); // Define newFolderName in parent
-const parentFolder = ref(""); // Define parentFolder in parent
 
 // Dialog State
 const showDialog = ref(false);

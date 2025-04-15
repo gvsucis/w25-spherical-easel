@@ -116,6 +116,9 @@ export class ConstructionTree {
     return leafless;
   }
 
+  /**
+   * like getFolders(), but only returns the owned branch.
+   */
   public getOwnedFolders(): Array<TreeviewNode> {
     var folders: Array<TreeviewNode> = [];
 
@@ -180,6 +183,9 @@ export class ConstructionTree {
     return this.root;
   }
 
+  /**
+   * add an empty folder to the tree at the given path
+   */
   public addFolder(path: ConstructionPath) {
     /* only add valid paths */
     if (path.isValid()) {
@@ -214,27 +220,20 @@ export class ConstructionTree {
   ): Array<TreeviewNode> | undefined {
     /* only search for valid paths */
     if (path.isValid()) {
-      console.debug(
-        '[getFolderContents] got valid path "' + path.toString() + '"'
-      );
       /* determine the parent node */
       let parent: TreeviewNode;
       switch (path.getRoot()) {
         case ConstructionPathRoots.OWNED:
           parent = this.root[this.ownedIdx];
-          console.debug("[getFolderContents] got initial parent OWNED");
           break;
         case ConstructionPathRoots.PUBLIC:
           parent = this.root[this.publicIdx];
-          console.debug("[getFolderContents] got initial parent PUBLIc");
           break;
         case ConstructionPathRoots.STARRED:
           parent = this.root[this.starredIdx];
-          console.debug("[getFolderContents] got initial parent STARRED");
           break;
         default:
           /* nothing to be done - we can't determine the parent node */
-          console.debug("[getFolderContents] got no initial parent");
           return undefined;
       }
 
@@ -253,7 +252,6 @@ export class ConstructionTree {
             /* only check non-leaves */
             if (!child.leaf) {
               const childSplit: Array<string> = child.id.split("/");
-              console.log("child split: " + JSON.stringify(childSplit));
               /* if we found a new child, break */
               if (childSplit.at(-2) == path_chunks.at(0)) {
                 found = true;
@@ -273,12 +271,9 @@ export class ConstructionTree {
         }
       }
 
-      console.debug("[getFolderContents] final node: " + parent.id);
       /* return the final node's children */
       return parent.children;
     }
-
-    console.debug('invalid path "' + path.toString() + '"');
 
     return undefined;
   }
