@@ -17,7 +17,6 @@
       v-if="firebaseUid && firebaseUid.length > 0"
       v-model:visible="showDialog"
       v-model:loadFolder="folderToLoad"
-      :checked-constructions="checkedConstructions"
       @move="" />
 
     <!-- Panels for Constructions -->
@@ -29,15 +28,10 @@
 import { ref, watch, computed, Ref } from "vue";
 import ConstructionTreeDialog from "@/components/ConstructionTreeDialog.vue";
 import PanelsContainer from "@/components/PanelsContainer.vue";
-import { useFolderActions } from "@/composables/useFolderActions";
 import { useAccountStore } from "@/stores/account";
 import { useConstructionStore } from "@/stores/construction";
 import { storeToRefs } from "pinia";
 import { ConstructionPath } from "@/types/ConstructionTypes";
-
-const moveConstructionHandler = () => {
-  moveConstruction(checkedConstructions.value, parentFolder.value);
-};
 
 // Store Setup
 const acctStore = useAccountStore();
@@ -45,7 +39,6 @@ const constructionStore = useConstructionStore();
 const { firebaseUid } = storeToRefs(acctStore);
 
 // Folder Actions Setup
-const { checkedConstructions, moveConstruction } = useFolderActions();
 const newFolderName = ref(""); // Define newFolderName in parent
 const parentFolder = ref(""); // Define parentFolder in parent
 
